@@ -208,15 +208,7 @@ export const getElementAtPosition = (
     if (excludeIds.has(element.id)) continue;
     if (!isBindableElement(element)) continue;
     
-    // Debug: log element bounds
-    const inElement = isPointInElement(x, y, element);
-    if (inElement) {
-      console.log("[v0] getElementAtPosition found element:", element.id, "type:", element.type, "at bounds:", {
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-      });
+    if (isPointInElement(x, y, element)) {
       return element;
     }
   }

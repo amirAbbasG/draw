@@ -1,5 +1,4 @@
 import React from "react";
-import { sceneCoordsToViewportCoords } from "@excalidraw/common";
 import type { ShapeAnchor, AnchorPosition } from "../../edgeConnector";
 import type { AppState } from "../../types";
 
@@ -11,6 +10,19 @@ interface AnchorActionsProps {
   onDuplicateWithEdge: (anchor: ShapeAnchor) => void;
   onStartDrawEdge: (anchor: ShapeAnchor) => void;
 }
+
+// Helper to convert scene coords to viewport coords relative to the container
+const toViewportRelative = (
+  sceneX: number,
+  sceneY: number,
+  appState: AppState,
+): { x: number; y: number } => {
+  const { scrollX, scrollY, zoom } = appState;
+  return {
+    x: (sceneX + scrollX) * zoom.value,
+    y: (sceneY + scrollY) * zoom.value,
+  };
+};
 
 const getArrowIcon = (position: AnchorPosition): string => {
   switch (position) {
@@ -26,7 +38,7 @@ const getArrowIcon = (position: AnchorPosition): string => {
 };
 
 const getButtonOffset = (position: AnchorPosition): { x: number; y: number } => {
-  const OFFSET = 28;
+  const OFFSET = 24;
   switch (position) {
     case "top":
       return { x: 0, y: -OFFSET };
@@ -45,18 +57,15 @@ export const AnchorActions: React.FC<AnchorActionsProps> = ({
   onDuplicateWithEdge,
   onStartDrawEdge,
 }) => {
-  const viewportCoords = sceneCoordsToViewportCoords(
-    { sceneX: anchor.x, sceneY: anchor.y },
-    appState,
-  );
-  
+  const viewportCoords = toViewportRelative(anchor.x, anchor.y, appState);
   const offset = getButtonOffset(anchor.position);
   
   const style: React.CSSProperties = {
     position: "absolute",
     left: viewportCoords.x + offset.x - 14, // Half of button width
     top: viewportCoords.y + offset.y - 14, // Half of button height
-    zIndex: 100,
+    zIndex: 15,
+    pointerEvents: "auto",
   };
   
   const handleClick = (e: React.MouseEvent) => {
@@ -64,22 +73,13 @@ export const AnchorActions: React.FC<AnchorActionsProps> = ({
     e.preventDefault();
     onDuplicateWithEdge(anchor);
   };
-  
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Left click
-      e.stopPropagation();
-      e.preventDefault();
-      onStartDrawEdge(anchor);
-    }
-  };
 
   return (
     <div className="anchor-actions" style={style}>
       <button
         className="anchor-action-btn"
         onClick={handleClick}
-        onMouseDown={handleMouseDown}
-        title="Click to duplicate with edge, drag to draw edge"
+        title="Click to duplicate shape with edge"
       >
         <svg width="18" height="18" viewBox="0 0 24 24">
           <path d={getArrowIcon(anchor.position)} fill="currentColor" />
