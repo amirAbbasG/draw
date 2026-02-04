@@ -19,6 +19,7 @@ import {
   getClosestAnchor,
   getElementAtPosition,
   type ShapeAnchor,
+  isPointInElement,
 } from "./index";
 import {
   edgeConnectorReducer,

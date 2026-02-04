@@ -84,7 +84,24 @@ export const getElementAnchors = (
 };
 
 /**
- * Find anchor at given coordinates
+ * Get anchors for an element based on its group bounds
+ */
+export const getElementAnchorsWithGroupBounds = (
+  element: NonDeletedExcalidrawElement,
+  elements: readonly NonDeletedExcalidrawElement[],
+): ShapeAnchor[] => {
+  const bounds = getElementOrGroupBounds(element, elements);
+  
+  return [
+    { position: "top", x: bounds.x + bounds.width / 2, y: bounds.y, elementId: element.id },
+    { position: "right", x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2, elementId: element.id },
+    { position: "bottom", x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height, elementId: element.id },
+    { position: "left", x: bounds.x, y: bounds.y + bounds.height / 2, elementId: element.id },
+  ];
+};
+
+/**
+ * Find anchor at given coordinates (considers groups)
  */
 export const getAnchorAtPosition = (
   x: number,
@@ -94,11 +111,19 @@ export const getAnchorAtPosition = (
   zoom: number,
 ): ShapeAnchor | null => {
   const hitRadius = ANCHOR_HIT_RADIUS / zoom;
+  const visitedGroups = new Set<string>();
   
   for (const element of elements) {
     if (!isBindableElement(element)) continue;
     
-    const anchors = getElementAnchors(element, elementsMap);
+    // Check if element is part of a group we've already checked
+    const outermostGroupId = element.groupIds?.[element.groupIds.length - 1];
+    if (outermostGroupId && visitedGroups.has(outermostGroupId)) {
+      continue;
+    }
+    
+    // Get anchors based on group bounds
+    const anchors = getElementAnchorsWithGroupBounds(element, elements);
     
     for (const anchor of anchors) {
       const distance = Math.sqrt(
@@ -106,6 +131,9 @@ export const getAnchorAtPosition = (
       );
       
       if (distance <= hitRadius) {
+        if (outermostGroupId) {
+          visitedGroups.add(outermostGroupId);
+        }
         return anchor;
       }
     }
@@ -194,7 +222,75 @@ export const isPointInElement = (
 };
 
 /**
- * Find element at position
+ * Get the bounding box of an element or its group
+ */
+export const getElementOrGroupBounds = (
+  element: NonDeletedExcalidrawElement,
+  elements: readonly NonDeletedExcalidrawElement[],
+): { x: number; y: number; width: number; height: number } => {
+  // If no groupIds, return element bounds
+  if (!element.groupIds || element.groupIds.length === 0) {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+  
+  // Get outermost group
+  const outermostGroupId = element.groupIds[element.groupIds.length - 1];
+  const groupElements = elements.filter(el => 
+    el.groupIds && el.groupIds.includes(outermostGroupId)
+  );
+  
+  if (groupElements.length <= 1) {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+  
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  
+  for (const el of groupElements) {
+    minX = Math.min(minX, el.x);
+    minY = Math.min(minY, el.y);
+    maxX = Math.max(maxX, el.x + el.width);
+    maxY = Math.max(maxY, el.y + el.height);
+  }
+  
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+};
+
+/**
+ * Check if point is in element or its group bounds
+ */
+export const isPointInElementOrGroup = (
+  x: number,
+  y: number,
+  element: NonDeletedExcalidrawElement,
+  elements: readonly NonDeletedExcalidrawElement[],
+  padding: number = 0,
+): boolean => {
+  const bounds = getElementOrGroupBounds(element, elements);
+  return (
+    x >= bounds.x - padding &&
+    x <= bounds.x + bounds.width + padding &&
+    y >= bounds.y - padding &&
+    y <= bounds.y + bounds.height + padding
+  );
+};
+
+/**
+ * Find element at position (considers groups)
  */
 export const getElementAtPosition = (
   x: number,
@@ -202,13 +298,26 @@ export const getElementAtPosition = (
   elements: readonly NonDeletedExcalidrawElement[],
   excludeIds: Set<string> = new Set(),
 ): NonDeletedExcalidrawElement | null => {
+  // Track visited group IDs to avoid returning multiple elements from same group
+  const visitedGroups = new Set<string>();
+  
   // Search from top to bottom (reverse order)
   for (let i = elements.length - 1; i >= 0; i--) {
     const element = elements[i];
     if (excludeIds.has(element.id)) continue;
     if (!isBindableElement(element)) continue;
     
-    if (isPointInElement(x, y, element)) {
+    // Check if element is part of a group we've already checked
+    const outermostGroupId = element.groupIds?.[element.groupIds.length - 1];
+    if (outermostGroupId && visitedGroups.has(outermostGroupId)) {
+      continue;
+    }
+    
+    // Check if point is in element or its group bounds
+    if (isPointInElementOrGroup(x, y, element, elements)) {
+      if (outermostGroupId) {
+        visitedGroups.add(outermostGroupId);
+      }
       return element;
     }
   }

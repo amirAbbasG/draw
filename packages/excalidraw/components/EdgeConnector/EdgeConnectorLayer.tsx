@@ -65,45 +65,43 @@ const generateElbowPath = (
   }
 };
 
-// Check if an element is a top-level element (not part of a group that has other visible elements)
-const isTopLevelElement = (
-  element: NonDeletedExcalidrawElement,
-  elements: readonly NonDeletedExcalidrawElement[],
-): boolean => {
-  // If element has no groupIds, it's top level
+// Get the outermost group ID for an element
+const getOutermostGroupId = (element: NonDeletedExcalidrawElement): string | null => {
   if (!element.groupIds || element.groupIds.length === 0) {
-    return true;
+    return null;
   }
-  
-  // Get the outermost group
-  const outermostGroupId = element.groupIds[element.groupIds.length - 1];
-  
-  // Find all elements in this group
-  const groupElements = elements.filter(el => 
-    el.groupIds && el.groupIds.includes(outermostGroupId)
-  );
-  
-  // If this element is the first bindable element in the group, show anchors on it
-  const firstBindable = groupElements.find(el => isBindableElement(el));
-  return firstBindable?.id === element.id;
+  return element.groupIds[element.groupIds.length - 1];
 };
 
-// Get the bounding box of a group of elements
-const getGroupBoundingBox = (
+// Get all elements in the same outermost group
+const getGroupElements = (
   element: NonDeletedExcalidrawElement,
   elements: readonly NonDeletedExcalidrawElement[],
-): { x: number; y: number; width: number; height: number } | null => {
-  if (!element.groupIds || element.groupIds.length === 0) {
-    return null;
+): NonDeletedExcalidrawElement[] => {
+  const outermostGroupId = getOutermostGroupId(element);
+  if (!outermostGroupId) {
+    return [element];
   }
   
-  const outermostGroupId = element.groupIds[element.groupIds.length - 1];
-  const groupElements = elements.filter(el => 
+  return elements.filter(el => 
     el.groupIds && el.groupIds.includes(outermostGroupId)
   );
+};
+
+// Get the bounding box of a group of elements (or single element)
+const getElementOrGroupBounds = (
+  element: NonDeletedExcalidrawElement,
+  elements: readonly NonDeletedExcalidrawElement[],
+): { x: number; y: number; width: number; height: number } => {
+  const groupElements = getGroupElements(element, elements);
   
-  if (groupElements.length <= 1) {
-    return null;
+  if (groupElements.length === 1) {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
   }
   
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -121,6 +119,23 @@ const getGroupBoundingBox = (
     width: maxX - minX,
     height: maxY - minY,
   };
+};
+
+// Check if point is in any element of the group
+const isPointInElementOrGroup = (
+  x: number,
+  y: number,
+  element: NonDeletedExcalidrawElement,
+  elements: readonly NonDeletedExcalidrawElement[],
+  padding: number = 0,
+): boolean => {
+  const bounds = getElementOrGroupBounds(element, elements);
+  return (
+    x >= bounds.x - padding &&
+    x <= bounds.x + bounds.width + padding &&
+    y >= bounds.y - padding &&
+    y <= bounds.y + bounds.height + padding
+  );
 };
 
 export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
@@ -151,10 +166,15 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
     onElementsChange,
   });
 
-  // Check if pointer is over UI elements (modals, popups, toolbars)
+  // Check if pointer is over UI elements (modals, popups, toolbars) but NOT edge connector elements
   const checkIfOverUI = useCallback((e: PointerEvent) => {
     const target = e.target as HTMLElement;
     if (!target) return false;
+    
+    // If over edge connector elements (anchors, action buttons), don't consider as over UI
+    if (target.closest('.edge-anchor') || target.closest('.anchor-actions') || target.closest('.edge-connector-layer')) {
+      return false;
+    }
     
     // Check if over any UI element
     const isOverUIElement = !!(
@@ -166,8 +186,7 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
       target.closest('.Dialog') ||
       target.closest('[class*="toolbar"]') ||
       target.closest('[class*="Toolbar"]') ||
-      target.closest('.shape-selector-popup') ||
-      target.closest('.anchor-actions')
+      target.closest('.shape-selector-popup')
     );
     
     return isOverUIElement;
@@ -175,9 +194,19 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
 
   // Handle pointer move
   const onPointerMove = useCallback((e: PointerEvent) => {
-    // Check if over UI
+    const target = e.target as HTMLElement;
+    
+    // If over edge connector elements, don't clear hover state
+    const isOverEdgeConnectorUI = target?.closest('.edge-anchor') || target?.closest('.anchor-actions');
+    
+    // Check if over UI (but not edge connector UI)
     const overUI = checkIfOverUI(e);
     setIsOverUI(overUI);
+    
+    // Don't clear state if over edge connector UI elements
+    if (isOverEdgeConnectorUI) {
+      return;
+    }
     
     if (overUI && !state.isDrawingEdge) {
       // Clear hover state when over UI
@@ -234,35 +263,26 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
     ? elementsMap.get(state.hoveredElementId) as NonDeletedExcalidrawElement | undefined
     : undefined;
 
-  // Check if hovered element should show anchors (not part of a group with others)
-  const shouldShowAnchors = hoveredElement && 
-    isBindableElement(hoveredElement) && 
-    isTopLevelElement(hoveredElement, elements);
+  // Check if hovered element should show anchors
+  const shouldShowAnchors = hoveredElement && isBindableElement(hoveredElement);
 
   // Calculate anchor positions in viewport coords for hovered element
+  // Uses group bounding box for grouped elements (like library shapes)
   const anchorPositions = useMemo(() => {
-    if (!hoveredElement || !isBindableElement(hoveredElement) || !shouldShowAnchors) {
+    if (!hoveredElement || !shouldShowAnchors) {
       return [];
     }
     
-    // Check if part of a group - use group bounds
-    const groupBounds = getGroupBoundingBox(hoveredElement, elements);
+    // Get the bounding box - either group bounds or single element bounds
+    const bounds = getElementOrGroupBounds(hoveredElement, elements);
     
-    let anchors: ShapeAnchor[];
-    if (groupBounds) {
-      // Create a fake element with group bounds for anchor calculation
-      const fakeElement = {
-        ...hoveredElement,
-        x: groupBounds.x,
-        y: groupBounds.y,
-        width: groupBounds.width,
-        height: groupBounds.height,
-        angle: 0,
-      } as ExcalidrawBindableElement;
-      anchors = getElementAnchors(fakeElement, elementsMap);
-    } else {
-      anchors = getElementAnchors(hoveredElement as ExcalidrawBindableElement, elementsMap);
-    }
+    // Create anchors based on bounds
+    const anchors: ShapeAnchor[] = [
+      { position: "top", x: bounds.x + bounds.width / 2, y: bounds.y, elementId: hoveredElement.id },
+      { position: "right", x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2, elementId: hoveredElement.id },
+      { position: "bottom", x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height, elementId: hoveredElement.id },
+      { position: "left", x: bounds.x, y: bounds.y + bounds.height / 2, elementId: hoveredElement.id },
+    ];
     
     return anchors.map((anchor) => {
       const viewportPos = toViewportRelative(anchor.x, anchor.y, appState);
@@ -272,7 +292,7 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
         viewportY: viewportPos.y,
       };
     });
-  }, [hoveredElement, shouldShowAnchors, elementsMap, elements, appState]);
+  }, [hoveredElement, shouldShowAnchors, elements, appState]);
 
   // Render edge preview line when drawing
   const renderEdgePreview = () => {
