@@ -14,6 +14,8 @@ import type {
   NonDeletedSceneElementsMap,
 } from "@excalidraw/element/types";
 import { isBindableElement } from "@excalidraw/element";
+import { getElementBounds, getCommonBounds, type Bounds } from "@excalidraw/element/bounds";
+import { arrayToMap } from "@excalidraw/common";
 
 export type AnchorPosition = "top" | "right" | "bottom" | "left";
 
@@ -84,13 +86,14 @@ export const getElementAnchors = (
 };
 
 /**
- * Get anchors for an element based on its group bounds
+ * Get anchors for an element based on its group bounds (with proper rotation handling)
  */
 export const getElementAnchorsWithGroupBounds = (
   element: NonDeletedExcalidrawElement,
   elements: readonly NonDeletedExcalidrawElement[],
+  elementsMap?: ElementsMap,
 ): ShapeAnchor[] => {
-  const bounds = getElementOrGroupBounds(element, elements);
+  const bounds = getElementOrGroupBounds(element, elements, elementsMap);
   
   return [
     { position: "top", x: bounds.x + bounds.width / 2, y: bounds.y, elementId: element.id },
@@ -101,7 +104,7 @@ export const getElementAnchorsWithGroupBounds = (
 };
 
 /**
- * Find anchor at given coordinates (considers groups)
+ * Find anchor at given coordinates (considers groups and rotation)
  */
 export const getAnchorAtPosition = (
   x: number,
@@ -122,8 +125,8 @@ export const getAnchorAtPosition = (
       continue;
     }
     
-    // Get anchors based on group bounds
-    const anchors = getElementAnchorsWithGroupBounds(element, elements);
+    // Get anchors based on group bounds (with proper rotation handling)
+    const anchors = getElementAnchorsWithGroupBounds(element, elements, elementsMap);
     
     for (const anchor of anchors) {
       const distance = Math.sqrt(
@@ -222,45 +225,50 @@ export const isPointInElement = (
 };
 
 /**
- * Get the bounding box of an element or its group
+ * Get all elements in the same group as the given element
  */
-export const getElementOrGroupBounds = (
+export const getGroupElements = (
   element: NonDeletedExcalidrawElement,
   elements: readonly NonDeletedExcalidrawElement[],
-): { x: number; y: number; width: number; height: number } => {
-  // If no groupIds, return element bounds
+): NonDeletedExcalidrawElement[] => {
   if (!element.groupIds || element.groupIds.length === 0) {
-    return {
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-    };
+    return [element];
   }
   
   // Get outermost group
   const outermostGroupId = element.groupIds[element.groupIds.length - 1];
-  const groupElements = elements.filter(el => 
+  return elements.filter(el => 
     el.groupIds && el.groupIds.includes(outermostGroupId)
   );
+};
+
+/**
+ * Get the bounding box of an element or its group
+ * Uses proper bounds calculation that accounts for rotation
+ */
+export const getElementOrGroupBounds = (
+  element: NonDeletedExcalidrawElement,
+  elements: readonly NonDeletedExcalidrawElement[],
+  elementsMap?: ElementsMap,
+): { x: number; y: number; width: number; height: number } => {
+  const _elementsMap = elementsMap || arrayToMap(elements);
   
-  if (groupElements.length <= 1) {
+  // Get group elements
+  const groupElements = getGroupElements(element, elements);
+  
+  if (groupElements.length === 1) {
+    // Single element - use proper bounds calculation (handles rotation)
+    const [minX, minY, maxX, maxY] = getElementBounds(element, _elementsMap);
     return {
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
     };
   }
   
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  
-  for (const el of groupElements) {
-    minX = Math.min(minX, el.x);
-    minY = Math.min(minY, el.y);
-    maxX = Math.max(maxX, el.x + el.width);
-    maxY = Math.max(maxY, el.y + el.height);
-  }
+  // Multiple elements (group) - use getCommonBounds which handles rotation
+  const [minX, minY, maxX, maxY] = getCommonBounds(groupElements, _elementsMap);
   
   return {
     x: minX,
@@ -271,16 +279,17 @@ export const getElementOrGroupBounds = (
 };
 
 /**
- * Check if point is in element or its group bounds
+ * Check if point is in element or its group bounds (with proper rotation handling)
  */
 export const isPointInElementOrGroup = (
   x: number,
   y: number,
   element: NonDeletedExcalidrawElement,
   elements: readonly NonDeletedExcalidrawElement[],
+  elementsMap?: ElementsMap,
   padding: number = 0,
 ): boolean => {
-  const bounds = getElementOrGroupBounds(element, elements);
+  const bounds = getElementOrGroupBounds(element, elements, elementsMap);
   return (
     x >= bounds.x - padding &&
     x <= bounds.x + bounds.width + padding &&
@@ -290,16 +299,18 @@ export const isPointInElementOrGroup = (
 };
 
 /**
- * Find element at position (considers groups)
+ * Find element at position (considers groups and rotation)
  */
 export const getElementAtPosition = (
   x: number,
   y: number,
   elements: readonly NonDeletedExcalidrawElement[],
+  elementsMap?: ElementsMap,
   excludeIds: Set<string> = new Set(),
 ): NonDeletedExcalidrawElement | null => {
   // Track visited group IDs to avoid returning multiple elements from same group
   const visitedGroups = new Set<string>();
+  const _elementsMap = elementsMap || arrayToMap(elements);
   
   // Search from top to bottom (reverse order)
   for (let i = elements.length - 1; i >= 0; i--) {
@@ -313,8 +324,8 @@ export const getElementAtPosition = (
       continue;
     }
     
-    // Check if point is in element or its group bounds
-    if (isPointInElementOrGroup(x, y, element, elements)) {
+    // Check if point is in element or its group bounds (with rotation handling)
+    if (isPointInElementOrGroup(x, y, element, elements, _elementsMap)) {
       if (outermostGroupId) {
         visitedGroups.add(outermostGroupId);
       }
