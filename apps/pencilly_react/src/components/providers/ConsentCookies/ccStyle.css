@@ -1,0 +1,65 @@
+#cc-main {
+  /** Change font **/
+  --cc-font-family: sans-serif;
+  /** Change button primary color to black **/
+  --cc-btn-primary-bg: hsl(250, 48%, 57%, 1);
+  --cc-btn-primary-border-color: hsl(250 38% 28%);
+  --cc-btn-primary-hover-bg: hsl(250 38% 28%);
+  --cc-btn-primary-hover-border-color: hsl(250 38% 28%);
+  /** toggle btn in on mode in light **/
+  --cc-toggle-on-bg: var(--cc-btn-primary-bg);
+  /** Make the buttons a bit rounder **/
+  --cc-btn-border-radius: 20px;
+  --cc-bg: hsl(252 100% 97%);
+}
+/* toggle btn in off mode in dark */
+.dark {
+  --cc-toggle-off-bg: #dfdfe0;
+}
+.dark #cc-main {
+  --cc-btn-primary-bg: hsl(250, 75%, 70%, 1);
+  --cc-btn-primary-border-color: hsl(251 90% 57%);
+  --cc-btn-primary-hover-bg: hsl(251 90% 57%);
+  --cc-btn-primary-hover-border-color: hsl(251 90% 57%);
+  --cc-bg: hsl(250, 55%, 24%);
+}
+.dark #cc-main .cm__btn {
+  color: #ecebef !important;
+}
+#cc-main .cm__btn--secondary {
+  color: #e8e6ef !important;
+  background-color: hsl(270, 7%, 11%);
+}
+#cc-main .pm__btn--secondary {
+  color: #e8e6ef !important;
+  background-color: hsl(270, 7%, 11%);
+}
+#cc-main .pm__btn--secondary:hover {
+  background-color: hsl(0, 1%, 26%) !important;
+}
+.cm__btn--secondary:hover {
+  background-color: hsl(0, 1%, 26%) !important;
+}
+.dark #cc-main .cm__btn--secondary {
+  color: #e8e6ef !important;
+  background-color: hsl(270, 5%, 38%);
+}
+.dark #cc-main .cm__btn--secondary:hover {
+  background-color: hsl(274, 4%, 36%);
+}
+
+#cc-main .pm__section-title {
+  background-color: hsl(0, 0%, 96%) !important;
+}
+#cc-main .pm--box {
+  background-color: hsl(0, 0%, 100%) !important;
+}
+.dark #cc-main .pm--box {
+  background-color: hsl(0, 1%, 21%) !important;
+}
+.dark #cc-main .pm__section-title {
+  background-color: hsl(0, 3%, 11%) !important;
+}
+.dark #cc-main .pm__btn {
+  color: white;
+}

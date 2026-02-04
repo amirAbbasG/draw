@@ -1,0 +1,20 @@
+# docker-compose.yml
+services:
+  pencilly_fe_prd:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile
+    image: pencilly_production
+    container_name: pencilly_fe_prd
+    restart: unless-stopped
+    ports:
+      - "3010:3010"
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+    networks: 
+      - edge
+
+networks:
+  edge:
+    external: true

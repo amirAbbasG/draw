@@ -1,0 +1,44 @@
+.excalidraw {
+  .Modal .Island {
+    padding: 1.5rem !important;
+  }
+
+  .confirm-dialog {
+    &-buttons {
+      display: flex;
+      column-gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .Dialog {
+      &__content {
+        height: 100% !important;
+        margin-top: 0 !important;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+
+        p {
+          font-size: 0.875rem;
+          margin-bottom: 0.5rem;
+        }
+      }
+
+      &__title {
+        border-bottom: 0 !important;
+        margin: 0 !important;
+        margin: 0 !important;
+
+        &Content {
+          font-weight: 500;
+          font-size: 1rem;
+        }
+      }
+
+      &__close {
+        top: 1.25rem;
+        right: 1rem;
+      }
+    }
+  }
+}

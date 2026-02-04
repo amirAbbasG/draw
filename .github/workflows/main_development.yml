@@ -1,0 +1,39 @@
+# .git/workflows/main_development.yml
+name: CI/CD Pipeline for Development Branch for Pencilly AI acquired via Nemati AI
+on:
+  push:
+    branches: ["development"]
+
+permissions:
+  contents: write
+
+env: # Global environment variables
+  BRANCH_NAME: ${{ github.ref_name }}
+
+jobs:
+
+  ######################## Setup Job ########################
+  setup:
+    uses: ./.github/workflows/setup_development.yml
+    secrets: inherit
+
+  # ######################## Build and Run Docker Job ########################
+  docker_build_and_run:
+    uses: ./.github/workflows/build_development.yml
+    needs: setup
+    secrets: inherit
+
+  # ############### Docker Clean up ########################
+  cleanup:
+    uses: ./.github/workflows/cleanup.yml
+    needs: [setup , docker_build_and_run]
+    secrets: inherit
+
+
+
+  # # ######################## Tag Job ########################
+  tag_and_release:
+    needs: [setup,docker_build_and_run ,cleanup]
+    uses: ./.github/workflows/tag_and_release.yml
+    secrets: inherit
+

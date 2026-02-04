@@ -1,0 +1,116 @@
+import { useEffect, useRef } from "react";
+
+import { resolvablePromise, ResolvablePromise } from "@excalidraw/common";
+import { restore } from "@excalidraw/excalidraw";
+import { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
+
+import {
+  importLibraryFromLocalStorage,
+  loadActivePageId,
+  loadPageData,
+} from "@/components/features/draw/local-storage";
+import { ROOM_KEY } from "@/components/features/share/constants";
+import { useCustomSearchParams } from "@/hooks/useCustomSearchParams";
+import { useLoadHistory } from "@/hooks/useLoadHistory";
+import { isEmpty } from "@/lib/utils";
+import {HistoryItem} from "@/components/features/history/types";
+
+export const useLoadData = (
+  drawAPI: DrawAPI,
+  onLoad: (elms: DrawElements, appState: Partial<DrawAppState> | null) => void,
+  setData: (data: HistoryItem) => void,
+) => {
+  const initialStatePromiseRef = useRef<{
+    promise: ResolvablePromise<ExcalidrawInitialDataState | null>;
+  }>({ promise: null! });
+  if (!initialStatePromiseRef.current.promise) {
+    initialStatePromiseRef.current.promise =
+      resolvablePromise<ExcalidrawInitialDataState | null>();
+  }
+
+
+  const { currentValue: room } = useCustomSearchParams(ROOM_KEY);
+
+  const { getHistory, activeHistory, paramHistory } = useLoadHistory();
+
+  const setHistoryData = async () => {
+    const data = await getHistory();
+    if (data) {
+      setData(data);
+    }
+  };
+
+  useEffect(() => {
+    if (activeHistory && drawAPI && !room) {
+      void setHistoryData();
+      initialStatePromiseRef.current.promise.resolve({});
+    }
+  }, [activeHistory, drawAPI]);
+
+  const initializeScene = async () => {
+    // Load from current page in pagination storage
+    const activePageId = loadActivePageId();
+
+    if (activePageId) {
+      const pageData = loadPageData(activePageId);
+
+      if (pageData) {
+        return restore(
+          {
+            elements: pageData.elements,
+            appState: pageData.appState,
+            files: pageData.files,
+          },
+          null,
+          null,
+          {
+            repairBindings: true,
+            deleteInvisibleElements: true,
+          },
+        );
+      }
+    }
+
+    // If no pagination data, return empty scene
+    return restore(null, null, null, {
+      repairBindings: true,
+      deleteInvisibleElements: true,
+    });
+  };
+
+  useEffect(() => {
+    if (room) {
+      initialStatePromiseRef.current.promise.resolve({});
+      return;
+    }
+
+    // Only initialize from localStorage if not loading from history
+    if (!paramHistory) {
+      void initializeScene().then(scene => {
+        initialStatePromiseRef.current.promise.resolve({
+          elements: scene.elements,
+          appState: scene.appState,
+          files: scene.files,
+        });
+        onLoad(scene.elements, scene.appState);
+      });
+    }
+  }, [paramHistory]);
+
+  useEffect(() => {
+    if (drawAPI) {
+      const localLibrary = importLibraryFromLocalStorage();
+      if (localLibrary && !isEmpty(localLibrary)) {
+        void drawAPI.updateLibrary({
+          libraryItems: localLibrary,
+          openLibraryMenu: false,
+          merge: false,
+        });
+      }
+    }
+  }, [drawAPI]);
+
+  return {
+    initialStatePromiseRef,
+  };
+};

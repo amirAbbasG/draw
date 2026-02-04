@@ -1,0 +1,38 @@
+/* Only UI fonts here, which are needed before the editor initializes. */
+/* These cannot be dynamically prepended with `EXCALIDRAW_ASSET_PATH`. */
+/* WARN: The following content is replaced during excalidraw-app build  */
+/*@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&f&family=Indie+Flower&family=Megrim&family=Playwrite+HU:wght@100..400&display=swap");*/
+@import url('https://fonts.googleapis.com/css2?family=Playwrite+NZ+Guides&family=Playwrite+NZ:wght@100..400&display=swap');
+
+
+@font-face {
+  font-family: "Assistant";
+  src: url(../fonts/Assistant/Assistant-Regular.woff2) format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Assistant";
+  src: url(../fonts/Assistant/Assistant-Medium.woff2) format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Assistant";
+  src: url(../fonts/Assistant/Assistant-SemiBold.woff2) format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Assistant";
+  src: url(../fonts/Assistant/Assistant-Bold.woff2) format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

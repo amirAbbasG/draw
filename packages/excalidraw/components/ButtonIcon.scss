@@ -1,0 +1,12 @@
+@use "../css/variables.module.scss" as vars;
+
+.excalidraw {
+  button.standalone {
+    @include vars.outlineButtonIconStyles();
+
+    & > * {
+      // dissalow pointer events on children, so we always have event.target on the button itself
+      pointer-events: none;
+    }
+  }
+}

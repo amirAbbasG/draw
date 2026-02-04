@@ -1,0 +1,59 @@
+# .dockerignore for IndoxRouter Frontend
+# Ignore node_modules and build artifacts
+node_modules/
+.next/
+out
+dist
+coverage
+*.log
+
+# .env.production - Removed to allow Docker build to access production env file
+.dockerignore
+.git
+.gitignore
+.vscode
+npm-debug.log
+node_modules/
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+**/node_modules
+.next/
+out
+dist
+coverage
+*.log
+
+# .env.production - Removed to allow Docker build to access production env file
+.dockerignore
+.git
+.gitignore
+.vscode
+npm-debug.log
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+**/node_modules
+
+
+# .dockerignore for IndoxRouter Frontend
+# Ignore node_modules and build artifacts
+node_modules/
+.next/
+out
+dist
+coverage
+*.log
+
+# .env.production - Removed to allow Docker build to access production env file
+.dockerignore
+.git
+.gitignore
+.vscode
+npm-debug.log
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+**/node_modules

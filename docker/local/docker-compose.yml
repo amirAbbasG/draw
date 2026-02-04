@@ -1,0 +1,21 @@
+services:
+  pencilly_fe_local:
+    build:
+      context: ../.. # Path to the root of the project
+      dockerfile: docker/local/Dockerfile
+      args:
+        TURBO_TEAM: ${TURBO_TEAM}
+        TURBO_TOKEN: ${TURBO_TOKEN}
+    image: pencilly_development
+    container_name: pencilly_fe_local
+    restart: unless-stopped
+
+
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    ports: ["3000:3000"] # Map host port 3000 to container port 3000
+
+
+
+

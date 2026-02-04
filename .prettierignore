@@ -1,0 +1,11 @@
+**/node_modules/*
+**/out/*
+**/.next/*
+**/tsconfig.json
+**/next.config.ts
+**/package.json
+**/package-lock.json
+**/.eslintrc.json
+**/public
+**/styles
+server.jS

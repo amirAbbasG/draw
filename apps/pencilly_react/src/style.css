@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "@nemati/tailwind-config";
+
+:root {
+    --header-height: 3.5rem;
+    --main-height: calc(100vh - var(--header-height));
+}
+
+* {
+    @apply font-sans
+}
+
+.shortcut {
+    border-radius: 8px;
+    background: linear-gradient(145deg, #eeeeee, 25%, #ffffff);
+    box-shadow: 3px 3px 2px #f0f0f0,
+    -3px -3px 2px #fefefe;
+    @apply col min-w-8 items-center border text-center;
+}
+
+.dark .shortcut {
+    border-radius: 8px;
+    background: linear-gradient(145deg, #262836, #2d2f40);
+    box-shadow: 2px 2px 2px #1e1f2a,
+    -1px -1px 2px #222330;
+}
+
+@keyframes strong-shake {
+    0% {
+        transform: rotate(0deg);
+    }
+    25% {
+        transform: rotate(10deg);
+    }
+    50% {
+        transform: rotate(0deg);
+    }
+    75% {
+        transform: rotate(-10deg);
+    }
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+div[data-radix-popper-content-wrapper]:has(.top-z) {
+    z-index: 100 !important;
+}
+
+.draw-btn {
+    @apply !rounded
+}
+

@@ -1,0 +1,20 @@
+services:
+  pencilly_fe_dev:
+    build:
+      context: ../.. # Path to the root of the project
+      dockerfile: docker/development/Dockerfile
+    image: pencilly_development
+    container_name: pencilly_fe_dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    # ports: ["3000:3000"] # Map host port 3000 to container port 3000
+    networks: [edge]
+
+
+networks:
+  edge:
+    external: true

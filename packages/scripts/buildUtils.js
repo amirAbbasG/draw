@@ -1,0 +1,79 @@
+const path = require("path");
+
+const { build } = require("esbuild");
+const { sassPlugin } = require("esbuild-sass-plugin");
+
+const { woff2ServerPlugin } = require("./woff2/woff2-esbuild-plugins");
+
+// contains all dependencies bundled inside
+const getConfig = outdir => ({
+  outdir,
+  bundle: true,
+  format: "esm",
+  entryPoints: ["src/index.ts"],
+  entryNames: "[name]",
+  assetNames: "[dir]/[name]",
+  alias: {
+    "@excalidraw/common": path.resolve(__dirname, "../common/src"),
+    "@excalidraw/element": path.resolve(__dirname, "../element/src"),
+    "@excalidraw/excalidraw": path.resolve(__dirname, "../excalidraw"),
+    "@excalidraw/math": path.resolve(__dirname, "../math/src"),
+    "@excalidraw/utils": path.resolve(__dirname, "../utils/src"),
+  },
+  external: [
+    "@braintree/sanitize-url",
+    "es6-promise-pool",
+    "nanoid",
+    "roughjs",
+    "perfect-freehand",
+    "lodash.throttle",
+    "points-on-curve",
+    "fractional-indexing",
+    "pica",
+    "image-blob-reduce",
+    "pako",
+    "browser-fs-access",
+    "png-chunk-text",
+    "png-chunks-encode",
+    "png-chunks-extract",
+  ],
+});
+
+function buildDev(config) {
+  return build({
+    ...config,
+    sourcemap: true,
+    plugins: [sassPlugin(), woff2ServerPlugin()],
+    define: {
+      "import.meta.env": JSON.stringify({ DEV: true }),
+    },
+  });
+}
+
+function buildProd(config) {
+  return build({
+    ...config,
+    minify: true,
+    plugins: [
+      sassPlugin(),
+      woff2ServerPlugin({
+        outdir: `${config.outdir}/assets`,
+      }),
+    ],
+    define: {
+      "import.meta.env": JSON.stringify({ PROD: true }),
+    },
+  });
+}
+
+const createESMRawBuild = async () => {
+  // development unminified build with source maps
+  await buildDev(getConfig("dist/dev"));
+
+  // production minified build without sourcemaps
+  await buildProd(getConfig("dist/prod"));
+};
+
+(async () => {
+  await createESMRawBuild();
+})();

@@ -1,0 +1,8 @@
+{
+  "extends": "../typescript-config/tsconfig.draw.json",
+  "compilerOptions": {
+    "outDir": "./dist/types"
+  },
+  "include": ["**/*"],
+  "exclude": ["**/*.test.*", "tests", "types", "examples", "dist"]
+}

@@ -1,0 +1,92 @@
+@reference "../../../style.css";
+
+.HelpDialog__key {
+  border-radius: 8px;
+  background: linear-gradient(145deg, #dedede, 25%, #ffffff);
+  box-shadow:
+    4px 4px 2px #f0f0f0,
+    -3px -3px 2px #fefefe;
+  @apply col min-w-8 items-center border text-center;
+}
+
+.dark .HelpDialog__key {
+  border-radius: 8px;
+  background: linear-gradient(145deg, #262836, #2d2f40);
+  box-shadow:
+    2px 2px 2px #1e1f2a,
+    -1px -1px 2px #222330;
+}
+
+#app-layout .excalidraw, .excalidraw {
+  --color-primary: oklch(0.547 0.158 288);
+  --color-primary-darker: oklch(0.334 0.092 288);
+  --color-primary-darkest: oklch(0.289 0.043 291);
+  --color-surface-primary-container: oklch(0.705 0.138 290 / 0.20);
+  --Switch-track-background: oklch(0.92 0.025 286.193);
+  --Switch-thumb-background: oklch(1 0 90);
+  --color-danger: oklch(0.556 0.185 29);
+  --default-border-color: oklch(0.904 0.008 262);
+  --icon-fill-color:  oklch(0.204 0.035 248.334);
+}
+
+#app-layout .excalidraw.theme--dark, .excalidraw.theme--dar{
+  --color-primary: oklch(0.705 0.138 290);
+  --color-primary-darker: oklch(0.9 0.05 294);
+  --color-primary-darkest: oklch(0.961 0.021 295);
+  --Switch-track-background: oklch(0.454 0.036 284.893);
+  --Switch-thumb-background: oklch(0.215 0.009 241);
+  --color-danger: oklch(0.71 0.167 26);
+  --default-border-color: oklch(0.315 0.02 289.395);
+  --color-surface-primary-container:  oklch(0.334 0.092 288);
+  --icon-fill-color: oklch(0.906 0.007 244);
+  --color-on-surface: oklch(0.906 0.007 244);
+}
+
+.sidebar-trigger__label {
+  @apply max-lg:!hidden;
+}
+
+.popover {
+  @apply !bg-popover;
+}
+
+.context-menu {
+  @apply !bg-popover !border-background !text-foreground !col !gap-0.5 !rounded !p-1 !shadow-md;
+}
+
+.context-menu-item-separator {
+  @apply !border-t-background;
+}
+
+.context-menu-item {
+  @apply focus:!bg-background hover:!bg-background hover:!text-foreground !rounded-sm border border-transparent !px-2.5 !py-1.5 !text-base !font-normal;
+}
+
+.context-menu-item.dangerous > .context-menu-item__label {
+  @apply !text-danger hover:!text-danger;
+}
+
+.excalidraw .context-menu-item.checkmark::before {
+  @apply hidden;
+}
+
+.excalidraw .context-menu-item.checkmark {
+  @apply border-primary bg-primary-lighter border;
+}
+
+.popover {
+  @apply !z-50;
+}
+
+.dropdown-menu-item--selected {
+  @apply !bg-primary-lighter !border-primary hover:!bg-background relative;
+}
+
+.dropdown-menu-item--selected::after {
+  content: "";
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath  d='m9.55 17.308l-4.97-4.97l.714-.713l4.256 4.256l9.156-9.156l.713.714z'/%3E%3C/svg%3E");
+  @apply !text-foreground !absolute !end-1.5 !top-1/2 z-10 size-4 -translate-y-1/2;
+}
