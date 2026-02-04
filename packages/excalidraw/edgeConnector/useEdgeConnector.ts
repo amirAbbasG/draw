@@ -50,6 +50,20 @@ export const useEdgeConnector = ({
   const [state, dispatch] = useReducer(edgeConnectorReducer, initialEdgeConnectorState);
   const isDrawingRef = useRef(false);
 
+  // Debug: log elements changes
+  useEffect(() => {
+    const bindableElements = elements.filter(el => isBindableElement(el));
+    console.log("[v0] useEdgeConnector elements:", elements.length, "bindable:", bindableElements.length);
+    if (bindableElements.length > 0) {
+      console.log("[v0] First bindable element:", bindableElements[0].type, bindableElements[0].id, {
+        x: bindableElements[0].x,
+        y: bindableElements[0].y,
+        width: bindableElements[0].width,
+        height: bindableElements[0].height,
+      });
+    }
+  }, [elements]);
+
   // Handle scene coordinate updates when drawing
   const handleScenePointerMove = useCallback((sceneX: number, sceneY: number) => {
     if (!state.isDrawingEdge || !state.drawingSourceAnchor) {
@@ -63,6 +77,7 @@ export const useEdgeConnector = ({
       );
       
       if (hoveredAnchor) {
+        console.log("[v0] Found hovered anchor:", hoveredAnchor.position, "on element:", hoveredAnchor.elementId);
         const hoveredElement = elementsMap.get(hoveredAnchor.elementId);
         if (hoveredElement && isBindableElement(hoveredElement)) {
           if (state.hoveredElementId !== hoveredElement.id) {
@@ -76,11 +91,13 @@ export const useEdgeConnector = ({
       // Check if hovering element (not anchor)
       const hoveredElement = getElementAtPosition(sceneX, sceneY, elements);
       if (hoveredElement && isBindableElement(hoveredElement)) {
+        console.log("[v0] Hovering over element:", hoveredElement.id, "type:", hoveredElement.type);
         if (state.hoveredElementId !== hoveredElement.id) {
           dispatch({ type: "SET_HOVERED_ELEMENT", elementId: hoveredElement.id });
         }
         dispatch({ type: "SET_HOVERED_ANCHOR", anchor: null });
       } else if (state.hoveredElementId) {
+        console.log("[v0] No longer hovering over element");
         dispatch({ type: "SET_HOVERED_ELEMENT", elementId: null });
         dispatch({ type: "SET_HOVERED_ANCHOR", anchor: null });
       }
