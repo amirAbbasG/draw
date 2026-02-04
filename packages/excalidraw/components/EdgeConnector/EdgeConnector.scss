@@ -1,0 +1,207 @@
+.anchor-actions {
+  pointer-events: auto;
+  animation: anchorFadeIn 0.15s ease-out;
+}
+
+@keyframes anchorFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.anchor-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary, #6965db);
+  background: var(--island-bg-color, white);
+  color: var(--color-primary, #6965db);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  
+  &:hover {
+    background: var(--color-primary, #6965db);
+    color: white;
+    transform: scale(1.1);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// Shape selector popup
+.shape-selector-popup {
+  position: absolute;
+  background: var(--island-bg-color, white);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 1000;
+  animation: popupFadeIn 0.2s ease-out;
+  
+  &::before {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--island-bg-color, white);
+    transform: rotate(45deg);
+  }
+  
+  &.position-top::before {
+    bottom: -6px;
+    left: 50%;
+    margin-left: -6px;
+  }
+  
+  &.position-bottom::before {
+    top: -6px;
+    left: 50%;
+    margin-left: -6px;
+  }
+  
+  &.position-left::before {
+    right: -6px;
+    top: 50%;
+    margin-top: -6px;
+  }
+  
+  &.position-right::before {
+    left: -6px;
+    top: 50%;
+    margin-top: -6px;
+  }
+}
+
+@keyframes popupFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.shape-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  max-width: 200px;
+}
+
+.shape-selector-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-gray-20, #e0e0e0);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: var(--color-primary-light, rgba(105, 101, 219, 0.1));
+    border-color: var(--color-primary, #6965db);
+  }
+  
+  svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--color-text-primary, #1e1e1e);
+    stroke-width: 1.5;
+    fill: none;
+  }
+}
+
+// Edge color picker
+.edge-color-picker {
+  position: absolute;
+  background: var(--island-bg-color, white);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 1001;
+}
+
+.edge-color-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.edge-color-item {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    transform: scale(1.15);
+  }
+  
+  &.selected {
+    border-color: var(--color-primary, #6965db);
+    box-shadow: 0 0 0 2px white, 0 0 0 4px var(--color-primary, #6965db);
+  }
+}
+
+// Edge handle for editing
+.edge-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: white;
+  border: 2px solid var(--color-primary, #6965db);
+  border-radius: 50%;
+  cursor: move;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  
+  &:hover {
+    background: var(--color-primary, #6965db);
+  }
+}
+
+// Tooltip styles
+.edge-connector-tooltip {
+  position: absolute;
+  background: var(--color-gray-90, #1e1e1e);
+  color: white;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1002;
+  
+  &::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--color-gray-90, #1e1e1e);
+    transform: rotate(45deg);
+  }
+  
+  &.position-top::after {
+    bottom: -3px;
+    left: 50%;
+    margin-left: -3px;
+  }
+}

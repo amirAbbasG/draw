@@ -458,6 +458,7 @@ import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import { SVGLayer } from "./SVGLayer";
 import { Toast } from "./Toast";
 import UnlockPopup from "./UnlockPopup";
+import { EdgeConnectorLayer } from "./EdgeConnector/EdgeConnectorLayer";
 
 const AppContext = React.createContext<AppClassProperties>(null!);
 const AppPropsContext = React.createContext<AppProps>(null!);
@@ -1842,6 +1843,22 @@ class App extends React.Component<AppProps, AppState> {
                         {showShapeSwitchPanel && (
                           <ConvertElementTypePopup app={this} />
                         )}
+                        
+                        {/* Edge Connector Layer for drawing edges between shapes */}
+                        <EdgeConnectorLayer
+                          appState={this.state}
+                          elementsMap={elementsMap}
+                          elements={this.scene.getNonDeletedElements()}
+                          scene={this.scene}
+                          onElementsChange={(newElements) => {
+                            this.scene.replaceAllElements([
+                              ...this.scene.getElementsIncludingDeleted(),
+                              ...newElements,
+                            ]);
+                            this.triggerRender(true);
+                          }}
+                          containerRef={this.excalidrawContainerRef}
+                        />
                       </ExcalidrawActionManagerContext.Provider>
                       {this.renderEmbeddables()}
                     </ExcalidrawElementsContext.Provider>

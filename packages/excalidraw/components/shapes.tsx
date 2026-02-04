@@ -4,6 +4,7 @@ import type { AppClassProperties } from "../types";
 import {
   ArrowIcon,
   DiamondIcon,
+  EdgeConnectorIcon,
   EllipseIcon,
   EraserIcon,
   FreedrawIcon, HexagonIcon,
@@ -93,6 +94,13 @@ export const SHAPES = [
     key: KEYS.A,
     numericKey: KEYS["8"],
     fillable: true,
+  },
+  {
+    icon: EdgeConnectorIcon,
+    value: "edgeConnector",
+    key: KEYS.C,
+    numericKey: null,
+    fillable: false,
   },
   {
     icon: LineIcon,
