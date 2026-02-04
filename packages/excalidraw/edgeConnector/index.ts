@@ -3,7 +3,7 @@
  * Provides functionality for creating and managing edge connections between shapes
  */
 
-import { pointFrom, type GlobalPoint, type LocalPoint } from "@excalidraw/math";
+import { pointFrom, pointRotateRads, type GlobalPoint, type LocalPoint, type Radians } from "@excalidraw/math";
 import type { AppState } from "../types";
 import type {
   ExcalidrawElement,
@@ -86,14 +86,57 @@ export const getElementAnchors = (
 };
 
 /**
- * Get anchors for an element based on its group bounds (with proper rotation handling)
+ * Get anchors for an element based on its LOCAL (unrotated) bounds, then rotate them
+ * This makes anchors appear at the center of the rotated edges, like selection handles
  */
 export const getElementAnchorsWithGroupBounds = (
   element: NonDeletedExcalidrawElement,
   elements: readonly NonDeletedExcalidrawElement[],
   elementsMap?: ElementsMap,
 ): ShapeAnchor[] => {
-  const bounds = getElementOrGroupBounds(element, elements, elementsMap);
+  const _elementsMap = elementsMap || arrayToMap(elements);
+  const groupElements = getGroupElements(element, elements);
+  
+  // For single element, use element's own coordinates and angle
+  if (groupElements.length === 1) {
+    const { x, y, width, height, angle } = element;
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+    
+    // Anchors at center of each side BEFORE rotation
+    const unrotatedAnchors = [
+      { position: "top" as AnchorPosition, x: cx, y: y },
+      { position: "right" as AnchorPosition, x: x + width, y: cy },
+      { position: "bottom" as AnchorPosition, x: cx, y: y + height },
+      { position: "left" as AnchorPosition, x: x, y: cy },
+    ];
+    
+    // If rotated, apply rotation to each anchor point
+    if (angle !== 0) {
+      return unrotatedAnchors.map((anchor) => {
+        const rotated = pointRotateRads(
+          pointFrom(anchor.x, anchor.y),
+          pointFrom(cx, cy),
+          angle as Radians,
+        );
+        return {
+          position: anchor.position,
+          x: rotated[0],
+          y: rotated[1],
+          elementId: element.id,
+        };
+      });
+    }
+    
+    return unrotatedAnchors.map(anchor => ({
+      ...anchor,
+      elementId: element.id,
+    }));
+  }
+  
+  // For grouped elements, calculate group bounds (already axis-aligned from getCommonBounds)
+  // Groups don't rotate as a whole in excalidraw, so use axis-aligned bounds
+  const bounds = getElementOrGroupBounds(element, elements, _elementsMap);
   
   return [
     { position: "top", x: bounds.x + bounds.width / 2, y: bounds.y, elementId: element.id },

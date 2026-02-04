@@ -20,7 +20,7 @@ import {
   ANCHOR_RADIUS, 
   type ShapeAnchor, 
   type AnchorPosition,
-  getElementOrGroupBounds as getElementOrGroupBoundsFromIndex,
+  getElementAnchorsWithGroupBounds,
 } from "../../edgeConnector/index";
 import { AnchorActions } from "./AnchorActions";
 import { ShapeSelector } from "./ShapeSelector";
@@ -202,23 +202,16 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
   const shouldShowAnchors = hoveredElement && isBindableElement(hoveredElement);
 
   // Calculate anchor positions in viewport coords for hovered element
-  // Uses group bounding box for grouped elements (like library shapes)
-  // Properly handles rotation by using getElementOrGroupBoundsFromIndex
+  // Uses getElementAnchorsWithGroupBounds which properly handles:
+  // - Rotation (anchors rotate with the element, at center of each rotated side)
+  // - Groups (anchors at bounding box of the entire group)
   const anchorPositions = useMemo(() => {
     if (!hoveredElement || !shouldShowAnchors) {
       return [];
     }
     
-    // Get the bounding box - properly handles rotation and groups
-    const bounds = getElementOrGroupBoundsFromIndex(hoveredElement, elements, elementsMap);
-    
-    // Create anchors based on bounds
-    const anchors: ShapeAnchor[] = [
-      { position: "top", x: bounds.x + bounds.width / 2, y: bounds.y, elementId: hoveredElement.id },
-      { position: "right", x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2, elementId: hoveredElement.id },
-      { position: "bottom", x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height, elementId: hoveredElement.id },
-      { position: "left", x: bounds.x, y: bounds.y + bounds.height / 2, elementId: hoveredElement.id },
-    ];
+    // Get anchors with proper rotation handling
+    const anchors = getElementAnchorsWithGroupBounds(hoveredElement, elements, elementsMap);
     
     return anchors.map((anchor) => {
       const viewportPos = toViewportRelative(anchor.x, anchor.y, appState);
