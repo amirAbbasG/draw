@@ -174,20 +174,21 @@ export const useEdgeConnector = ({
     isDrawingRef.current = false;
   }, []);
 
-  // Duplicate shape with edge
+  // Duplicate shape with edge (duplicates entire group if part of one)
   const handleDuplicateWithEdge = useCallback((anchor: ShapeAnchor) => {
     const sourceElement = elementsMap.get(anchor.elementId);
     if (!sourceElement || !isBindableElement(sourceElement)) return;
     
-    const { newElement, edge } = duplicateShapeWithEdge(
+    const { newElements, edge } = duplicateShapeWithEdge(
       sourceElement,
       anchor,
       appState,
       scene,
+      elements, // Pass all elements to find group members
     );
     
-    onElementsChange([newElement, edge]);
-  }, [elementsMap, appState, scene, onElementsChange]);
+    onElementsChange([...newElements, edge]);
+  }, [elementsMap, appState, scene, elements, onElementsChange]);
 
   // Select shape from popup
   const handleSelectShape = useCallback((shapeType: ExcalidrawElement["type"]) => {

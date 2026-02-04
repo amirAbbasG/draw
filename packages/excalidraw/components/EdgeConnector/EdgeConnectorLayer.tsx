@@ -15,7 +15,13 @@ import type {
 import type { Scene } from "@excalidraw/element";
 import type { AppState } from "../../types";
 import { useEdgeConnector } from "../../edgeConnector/useEdgeConnector";
-import { getElementAnchors, ANCHOR_RADIUS, type ShapeAnchor, type AnchorPosition } from "../../edgeConnector/index";
+import { 
+  getElementAnchors, 
+  ANCHOR_RADIUS, 
+  type ShapeAnchor, 
+  type AnchorPosition,
+  getElementOrGroupBounds as getElementOrGroupBoundsFromIndex,
+} from "../../edgeConnector/index";
 import { AnchorActions } from "./AnchorActions";
 import { ShapeSelector } from "./ShapeSelector";
 
@@ -65,78 +71,7 @@ const generateElbowPath = (
   }
 };
 
-// Get the outermost group ID for an element
-const getOutermostGroupId = (element: NonDeletedExcalidrawElement): string | null => {
-  if (!element.groupIds || element.groupIds.length === 0) {
-    return null;
-  }
-  return element.groupIds[element.groupIds.length - 1];
-};
 
-// Get all elements in the same outermost group
-const getGroupElements = (
-  element: NonDeletedExcalidrawElement,
-  elements: readonly NonDeletedExcalidrawElement[],
-): NonDeletedExcalidrawElement[] => {
-  const outermostGroupId = getOutermostGroupId(element);
-  if (!outermostGroupId) {
-    return [element];
-  }
-  
-  return elements.filter(el => 
-    el.groupIds && el.groupIds.includes(outermostGroupId)
-  );
-};
-
-// Get the bounding box of a group of elements (or single element)
-const getElementOrGroupBounds = (
-  element: NonDeletedExcalidrawElement,
-  elements: readonly NonDeletedExcalidrawElement[],
-): { x: number; y: number; width: number; height: number } => {
-  const groupElements = getGroupElements(element, elements);
-  
-  if (groupElements.length === 1) {
-    return {
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-    };
-  }
-  
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  
-  for (const el of groupElements) {
-    minX = Math.min(minX, el.x);
-    minY = Math.min(minY, el.y);
-    maxX = Math.max(maxX, el.x + el.width);
-    maxY = Math.max(maxY, el.y + el.height);
-  }
-  
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
-  };
-};
-
-// Check if point is in any element of the group
-const isPointInElementOrGroup = (
-  x: number,
-  y: number,
-  element: NonDeletedExcalidrawElement,
-  elements: readonly NonDeletedExcalidrawElement[],
-  padding: number = 0,
-): boolean => {
-  const bounds = getElementOrGroupBounds(element, elements);
-  return (
-    x >= bounds.x - padding &&
-    x <= bounds.x + bounds.width + padding &&
-    y >= bounds.y - padding &&
-    y <= bounds.y + bounds.height + padding
-  );
-};
 
 export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
   appState,
@@ -268,13 +203,14 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
 
   // Calculate anchor positions in viewport coords for hovered element
   // Uses group bounding box for grouped elements (like library shapes)
+  // Properly handles rotation by using getElementOrGroupBoundsFromIndex
   const anchorPositions = useMemo(() => {
     if (!hoveredElement || !shouldShowAnchors) {
       return [];
     }
     
-    // Get the bounding box - either group bounds or single element bounds
-    const bounds = getElementOrGroupBounds(hoveredElement, elements);
+    // Get the bounding box - properly handles rotation and groups
+    const bounds = getElementOrGroupBoundsFromIndex(hoveredElement, elements, elementsMap);
     
     // Create anchors based on bounds
     const anchors: ShapeAnchor[] = [
@@ -292,7 +228,7 @@ export const EdgeConnectorLayer: React.FC<EdgeConnectorLayerProps> = ({
         viewportY: viewportPos.y,
       };
     });
-  }, [hoveredElement, shouldShowAnchors, elements, appState]);
+  }, [hoveredElement, shouldShowAnchors, elements, elementsMap, appState]);
 
   // Render edge preview line when drawing
   const renderEdgePreview = () => {
