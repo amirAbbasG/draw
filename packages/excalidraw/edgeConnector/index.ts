@@ -305,8 +305,8 @@ export const getElementAtPosition = (
   x: number,
   y: number,
   elements: readonly NonDeletedExcalidrawElement[],
-  elementsMap?: ElementsMap,
   excludeIds: Set<string> = new Set(),
+  elementsMap?: ElementsMap,
 ): NonDeletedExcalidrawElement | null => {
   // Track visited group IDs to avoid returning multiple elements from same group
   const visitedGroups = new Set<string>();

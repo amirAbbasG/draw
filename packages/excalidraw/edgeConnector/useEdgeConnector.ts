@@ -74,8 +74,8 @@ export const useEdgeConnector = ({
         }
       }
       
-      // Check if hovering element (not anchor)
-      const hoveredElement = getElementAtPosition(sceneX, sceneY, elements);
+      // Check if hovering element (not anchor) - pass elementsMap for rotation handling
+      const hoveredElement = getElementAtPosition(sceneX, sceneY, elements, new Set(), elementsMap);
       if (hoveredElement && isBindableElement(hoveredElement)) {
         if (state.hoveredElementId !== hoveredElement.id) {
           dispatch({ type: "SET_HOVERED_ELEMENT", elementId: hoveredElement.id });
@@ -88,12 +88,13 @@ export const useEdgeConnector = ({
       return;
     }
     
-    // Drawing mode - find target
+    // Drawing mode - find target (pass elementsMap for rotation handling)
     const targetElement = getElementAtPosition(
       sceneX,
       sceneY,
       elements,
       new Set([state.drawingSourceAnchor.elementId]),
+      elementsMap,
     );
     
     let targetAnchor: ShapeAnchor | null = null;
