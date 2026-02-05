@@ -545,7 +545,34 @@ const renderTransformHandles = (
   transformHandles: TransformHandles,
   angle: number,
 ): void => {
-  Object.keys(transformHandles).forEach(key => {
+  // First, draw the connecting line from rotation handle to selection box
+  const rotationHandle = transformHandles.rotation;
+  const topHandle = transformHandles.n; // north handle is at top center
+
+  if (rotationHandle && topHandle) {
+    const [rotX, rotY, rotWidth, rotHeight] = rotationHandle;
+    const [topX, topY, topWidth, topHeight] = topHandle;
+
+    const rotCenterX = rotX + rotWidth / 2;
+    const rotCenterY = rotY + rotHeight / 2;
+    const topCenterX = topX + topWidth / 2;
+    const topCenterY = topY + topHeight / 2;
+
+    context.save();
+    context.strokeStyle = renderConfig.selectionColor || "#6965db";
+    context.lineWidth = 1 / appState.zoom.value;
+    context.setLineDash([3 / appState.zoom.value, 3 / appState.zoom.value]);
+
+    // Draw line from bottom of rotation handle to top handle
+    context.beginPath();
+    context.moveTo(rotCenterX, rotCenterY + rotHeight / 2);
+    context.lineTo(topCenterX, topCenterY - topHeight / 2);
+    context.stroke();
+
+    context.restore();
+  }
+
+  Object.keys(transformHandles).forEach((key) => {
     const transformHandle = transformHandles[key as TransformHandleType];
     if (transformHandle !== undefined) {
       const [x, y, width, height] = transformHandle;
@@ -559,48 +586,38 @@ const renderTransformHandles = (
         fillCircle(context, x + width / 2, y + height / 2, width / 2, true);
 
         // Draw rotation icon inside the handle
-        const iconSize = width * 0.5;
         const centerX = x + width / 2;
         const centerY = y + height / 2;
+        const iconRadius = width * 0.28;
 
         context.save();
         context.strokeStyle = renderConfig.selectionColor || "#6965db";
-        context.lineWidth = 1.5 / appState.zoom.value;
+        context.lineWidth = 1.2 / appState.zoom.value;
         context.lineCap = "round";
 
-        // Draw a circular arrow icon
+        // Draw a cleaner circular arrow icon (arc with arrow)
         context.beginPath();
-        const iconRadius = iconSize * 0.7;
-        // Draw arc (about 270 degrees)
-        context.arc(
-          centerX,
-          centerY,
-          iconRadius,
-          -Math.PI * 0.75,
-          Math.PI * 0.75,
-          false,
-        );
+        // Draw arc from top going clockwise about 270 degrees
+        context.arc(centerX, centerY, iconRadius, -Math.PI * 0.6, Math.PI * 0.9, false);
         context.stroke();
 
         // Draw arrowhead at the end of the arc
-        const arrowSize = iconRadius * 0.5;
-        const arrowAngle = Math.PI * 0.75;
-        const arrowX = centerX + iconRadius * Math.cos(arrowAngle);
-        const arrowY = centerY + iconRadius * Math.sin(arrowAngle);
+        const arrowTipAngle = Math.PI * 0.9;
+        const arrowTipX = centerX + iconRadius * Math.cos(arrowTipAngle);
+        const arrowTipY = centerY + iconRadius * Math.sin(arrowTipAngle);
+        const arrowLen = iconRadius * 0.6;
 
+        // Two lines forming the arrowhead
         context.beginPath();
-        context.moveTo(arrowX, arrowY);
+        context.moveTo(arrowTipX, arrowTipY);
         context.lineTo(
-          arrowX + arrowSize * Math.cos(arrowAngle - Math.PI * 0.7),
-          arrowY + arrowSize * Math.sin(arrowAngle - Math.PI * 0.7),
+          arrowTipX + arrowLen * Math.cos(arrowTipAngle - Math.PI * 0.65),
+          arrowTipY + arrowLen * Math.sin(arrowTipAngle - Math.PI * 0.65),
         );
-        context.stroke();
-
-        context.beginPath();
-        context.moveTo(arrowX, arrowY);
+        context.moveTo(arrowTipX, arrowTipY);
         context.lineTo(
-          arrowX + arrowSize * Math.cos(arrowAngle + Math.PI * 0.3),
-          arrowY + arrowSize * Math.sin(arrowAngle + Math.PI * 0.3),
+          arrowTipX + arrowLen * Math.cos(arrowTipAngle + Math.PI * 0.35),
+          arrowTipY + arrowLen * Math.sin(arrowTipAngle + Math.PI * 0.35),
         );
         context.stroke();
 
