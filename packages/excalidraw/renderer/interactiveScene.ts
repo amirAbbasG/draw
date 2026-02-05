@@ -546,26 +546,33 @@ const renderTransformHandles = (
   angle: number,
 ): void => {
   // First, draw the connecting line from rotation handle to selection box top
-  // The rotation handle and n (north) handle are already positioned correctly
-  // accounting for any rotation, so we just connect their centers
+  // Use nw and ne corner handles to find the top center (n handle is often omitted)
   const rotationHandle = transformHandles.rotation;
-  const nHandle = transformHandles.n;
+  const nwHandle = transformHandles.nw;
+  const neHandle = transformHandles.ne;
 
-  if (rotationHandle && nHandle) {
+  if (rotationHandle && nwHandle && neHandle) {
     const [rotX, rotY, rotWidth, rotHeight] = rotationHandle;
-    const [nX, nY, nW, nH] = nHandle;
+    const [nwX, nwY, nwW, nwH] = nwHandle;
+    const [neX, neY, neW, neH] = neHandle;
 
     // Center of rotation handle
     const rotCenterX = rotX + rotWidth / 2;
     const rotCenterY = rotY + rotHeight / 2;
 
-    // Center of north handle
-    const nCenterX = nX + nW / 2;
-    const nCenterY = nY + nH / 2;
+    // Calculate top center from nw and ne handles
+    const nwCenterX = nwX + nwW / 2;
+    const nwCenterY = nwY + nwH / 2;
+    const neCenterX = neX + neW / 2;
+    const neCenterY = neY + neH / 2;
 
-    // Calculate the direction from n handle to rotation handle
-    const dx = rotCenterX - nCenterX;
-    const dy = rotCenterY - nCenterY;
+    // Midpoint between nw and ne handles (top center of selection)
+    const topCenterX = (nwCenterX + neCenterX) / 2;
+    const topCenterY = (nwCenterY + neCenterY) / 2;
+
+    // Calculate the direction from top center to rotation handle
+    const dx = rotCenterX - topCenterX;
+    const dy = rotCenterY - topCenterY;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist > 0) {
@@ -573,19 +580,19 @@ const renderTransformHandles = (
       const nx = dx / dist;
       const ny = dy / dist;
 
-      // Start point: edge of rotation handle circle (towards n handle)
+      // Start point: edge of rotation handle circle (towards selection)
       const startX = rotCenterX - nx * (rotWidth / 2);
       const startY = rotCenterY - ny * (rotHeight / 2);
 
-      // End point: edge of n handle (towards rotation handle)
-      const endX = nCenterX + nx * (nW / 2);
-      const endY = nCenterY + ny * (nH / 2);
+      // End point: top center of selection box
+      const endX = topCenterX;
+      const endY = topCenterY;
 
       context.save();
       context.strokeStyle = renderConfig.selectionColor || "#6965db";
       context.lineWidth = 1 / appState.zoom.value;
 
-      // Draw solid line connecting the two handles
+      // Draw solid line connecting rotation handle to selection top
       context.beginPath();
       context.moveTo(startX, startY);
       context.lineTo(endX, endY);
