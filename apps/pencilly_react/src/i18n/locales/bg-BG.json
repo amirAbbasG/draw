@@ -365,16 +365,32 @@
     }
   },
   "settings": {
-    "title": "Settings",
-    "menu": {
-      "account": "Account Settings",
-      "subscription": "Subscription",
-      "referral": "Referral & Rewards",
-      "theme": "Theme",
-      "about": "About",
-      "subscription_history": "Subscription History"
-    },
-    "loading": "Loading",
+  "title": "Settings",
+  "menu": {
+  "account": "Account Settings",
+  "subscription": "Subscription",
+  "referral": "Referral & Rewards",
+  "theme": "Theme",
+  "preferences": "Preferences",
+  "about": "About",
+  "subscription_history": "Subscription History"
+  },
+  "preferences": {
+    "credit_confirmations": "Credit Usage Confirmations",
+    "credit_confirmations_description": "Control which features show a confirmation dialog before using credits. Toggle off to hide confirmations, toggle on to show them.",
+    "confirmation_shown": "Confirmation will be shown",
+    "confirmation_hidden": "Confirmation is hidden",
+    "enable_all_confirmations": "Reset All Confirmations",
+    "features": {
+      "ai_drawing": "AI Drawing",
+      "improve_drawing": "Improve Drawing",
+      "ai_image": "AI Image Generation",
+      "convert_to_3d": "Convert to 3D",
+      "ai_3d": "AI 3D Generation",
+      "mermaid_diagram": "Mermaid Diagram"
+    }
+  },
+  "loading": "Loading",
     "plane_t_head": "Plan",
     "date_t_head": "Date",
     "price_t_head": "Price",

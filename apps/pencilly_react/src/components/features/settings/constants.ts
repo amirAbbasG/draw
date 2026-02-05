@@ -1,5 +1,6 @@
 import About from "@/components/features/settings/about";
 import AccountSettings from "@/components/features/settings/account-settings";
+import Preferences from "@/components/features/settings/preferences";
 import Referral from "@/components/features/settings/referral";
 import Subscriptions from "@/components/features/settings/subscriptions";
 import SubscriptionHistory from "@/components/features/settings/subscriptions/SubscriptionHistory";
@@ -35,7 +36,11 @@ export const settingsMenuItems: SettingMenuItem[] = [
     Icon: sharedIcons.light,
     key: "theme",
   },
-
+  {
+    id: "setting-item-8",
+    Icon: "hugeicons:toggle-on",
+    key: "preferences",
+  },
   {
     id: "setting-item-7",
     Icon: "hugeicons:information-circle",
@@ -48,6 +53,7 @@ export const menuComponents = {
   subscription: Subscriptions,
   referral: Referral,
   theme: Theme,
+  preferences: Preferences,
   about: About,
   subscription_history: SubscriptionHistory,
 };

@@ -1,6 +1,6 @@
 
 
-export type SettingMenu = "account" | "subscription" | "referral" | "theme" | "about" | "subscription_history";
+export type SettingMenu = "account" | "subscription" | "referral" | "theme" | "about" | "subscription_history" | "preferences";
 
 export interface SettingMenuItem {
   id: string;
