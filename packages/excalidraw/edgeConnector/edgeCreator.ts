@@ -28,6 +28,8 @@ import {
   getGroupElements,
   getElementOrGroupBounds,
 } from "./index";
+import { createShapeFromLibrary } from "./shapeLibrary";
+import type { ShapeSelection } from "../components/EdgeConnector/ShapeSelector";
 
 const PADDING = 6;
 
@@ -295,4 +297,104 @@ export const updateEdgeColor = (
  */
 export const isEdgeElement = (element: ExcalidrawElement): element is ExcalidrawArrowElement => {
   return element.type === "arrow";
+};
+
+/**
+ * Create shape from selection (built-in or library) with edge
+ */
+export const createShapeFromSelectionWithEdge = (
+  selection: ShapeSelection,
+  position: { x: number; y: number },
+  sourceAnchor: ShapeAnchor,
+  sourceElement: ExcalidrawBindableElement,
+  appState: AppState,
+  scene: Scene,
+): { newElements: ExcalidrawElement[]; edge: ExcalidrawElbowArrowElement } => {
+  // Default shape size
+  const defaultSize = { width: 100, height: 100 };
+  
+  let newElements: ExcalidrawElement[] = [];
+  let bindableElement: ExcalidrawBindableElement;
+  
+  if (selection.type === "builtin") {
+    // Create built-in shape
+    const newShape = newElement({
+      type: selection.shapeType as any,
+      x: position.x - defaultSize.width / 2,
+      y: position.y - defaultSize.height / 2,
+      width: defaultSize.width,
+      height: defaultSize.height,
+      roughness: appState.currentItemRoughness || 1,
+      backgroundColor: appState.currentItemBackgroundColor || "transparent",
+      strokeColor: appState.currentItemStrokeColor || "#1e1e1e",
+      strokeWidth: appState.currentItemStrokeWidth || 1,
+      opacity: appState.currentItemOpacity || 100,
+      fillStyle: appState.currentItemFillStyle || "hachure",
+      strokeStyle: appState.currentItemStrokeStyle || "solid",
+    });
+    newElements = [newShape];
+    bindableElement = newShape as ExcalidrawBindableElement;
+  } else {
+    // Create library shape
+    const libraryElements = createShapeFromLibrary(
+      selection.libraryIndex,
+      position.x - defaultSize.width / 2,
+      position.y - defaultSize.height / 2,
+      defaultSize.width,
+      defaultSize.height,
+    );
+    
+    if (libraryElements.length === 0) {
+      // Fallback to rectangle if library shape fails
+      const fallbackShape = newElement({
+        type: "rectangle",
+        x: position.x - defaultSize.width / 2,
+        y: position.y - defaultSize.height / 2,
+        width: defaultSize.width,
+        height: defaultSize.height,
+        roughness: appState.currentItemRoughness || 1,
+        backgroundColor: "transparent",
+        strokeColor: "#1e1e1e",
+        strokeWidth: 1,
+        opacity: 100,
+        fillStyle: "solid",
+        strokeStyle: "solid",
+      });
+      newElements = [fallbackShape];
+      bindableElement = fallbackShape as ExcalidrawBindableElement;
+    } else {
+      newElements = libraryElements;
+      // Use first element as bindable element (library shapes are typically single elements)
+      bindableElement = libraryElements[0] as ExcalidrawBindableElement;
+    }
+  }
+  
+  // Get bounds of the new shape(s) for anchor calculation
+  const shapeBounds = {
+    x: position.x - defaultSize.width / 2,
+    y: position.y - defaultSize.height / 2,
+    width: defaultSize.width,
+    height: defaultSize.height,
+  };
+  
+  // Calculate target anchor on new shape (opposite side from source)
+  const targetPosition = getOppositeAnchorPosition(sourceAnchor.position);
+  const targetAnchor: ShapeAnchor = {
+    position: targetPosition,
+    x: shapeBounds.x + (targetPosition === "right" ? shapeBounds.width : targetPosition === "left" ? 0 : shapeBounds.width / 2),
+    y: shapeBounds.y + (targetPosition === "bottom" ? shapeBounds.height : targetPosition === "top" ? 0 : shapeBounds.height / 2),
+    elementId: bindableElement.id,
+  };
+  
+  // Create edge
+  const edge = createEdgeBetweenAnchors(
+    sourceAnchor,
+    targetAnchor,
+    sourceElement,
+    bindableElement,
+    appState,
+    scene,
+  );
+  
+  return { newElements, edge };
 };

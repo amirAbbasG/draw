@@ -26,10 +26,10 @@ import {
 import {
   createEdgeBetweenAnchors,
   duplicateShapeWithEdge,
-  createShapeWithEdge,
+  createShapeFromSelectionWithEdge,
 } from "../../edgeConnector/edgeCreator";
 import { AnchorActions } from "./AnchorActions";
-import { ShapeSelector } from "./ShapeSelector";
+import { ShapeSelector, type ShapeSelection } from "./ShapeSelector";
 import { EdgeColorPicker } from "./EdgeColorPicker";
 
 import "./EdgeConnector.scss";
@@ -213,8 +213,8 @@ export const EdgeConnector: React.FC<EdgeConnectorProps> = ({
     onElementsChange([...newElements, edge]);
   }, [elementsMap, appState, scene, elements, onElementsChange]);
   
-  // Handle shape selection from popup
-  const handleSelectShape = useCallback((shapeType: ExcalidrawElement["type"]) => {
+  // Handle shape selection from popup (supports built-in and library shapes)
+  const handleSelectShape = useCallback((selection: ShapeSelection) => {
     if (!state.pendingEdgeSourceAnchor || !state.shapeSelectorPosition) return;
     
     const sourceElement = elementsMap.get(state.pendingEdgeSourceAnchor.elementId);
@@ -229,8 +229,8 @@ export const EdgeConnector: React.FC<EdgeConnectorProps> = ({
       appState,
     );
     
-    const { newElement, edge } = createShapeWithEdge(
-      shapeType,
+    const { newElements, edge } = createShapeFromSelectionWithEdge(
+      selection,
       sceneCoords,
       state.pendingEdgeSourceAnchor,
       sourceElement,
@@ -238,7 +238,7 @@ export const EdgeConnector: React.FC<EdgeConnectorProps> = ({
       scene,
     );
     
-    onElementsChange([newElement, edge]);
+    onElementsChange([...newElements, edge]);
     dispatch({ type: "HIDE_SHAPE_SELECTOR" });
   }, [state.pendingEdgeSourceAnchor, state.shapeSelectorPosition, elementsMap, appState, scene, onElementsChange]);
   

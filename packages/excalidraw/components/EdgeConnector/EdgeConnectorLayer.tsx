@@ -23,7 +23,7 @@ import {
   getElementAnchorsWithGroupBounds,
 } from "../../edgeConnector/index";
 import { AnchorActions } from "./AnchorActions";
-import { ShapeSelector } from "./ShapeSelector";
+import { ShapeSelector, type ShapeSelection } from "./ShapeSelector";
 
 import "./EdgeConnector.scss";
 

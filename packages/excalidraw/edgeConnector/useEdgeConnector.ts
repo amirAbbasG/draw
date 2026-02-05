@@ -30,8 +30,9 @@ import {
 import {
   createEdgeBetweenAnchors,
   duplicateShapeWithEdge,
-  createShapeWithEdge,
+  createShapeFromSelectionWithEdge,
 } from "./edgeCreator";
+import type { ShapeSelection } from "../components/EdgeConnector/ShapeSelector";
 
 interface UseEdgeConnectorProps {
   appState: AppState;
@@ -191,8 +192,8 @@ export const useEdgeConnector = ({
     onElementsChange([...newElements, edge]);
   }, [elementsMap, appState, scene, elements, onElementsChange]);
 
-  // Select shape from popup
-  const handleSelectShape = useCallback((shapeType: ExcalidrawElement["type"]) => {
+  // Select shape from popup (supports both built-in and library shapes)
+  const handleSelectShape = useCallback((selection: ShapeSelection) => {
     if (!state.pendingEdgeSourceAnchor || !state.shapeSelectorPosition) return;
     
     const sourceElement = elementsMap.get(state.pendingEdgeSourceAnchor.elementId);
@@ -206,8 +207,8 @@ export const useEdgeConnector = ({
       appState,
     );
     
-    const { newElement, edge } = createShapeWithEdge(
-      shapeType,
+    const { newElements, edge } = createShapeFromSelectionWithEdge(
+      selection,
       sceneCoords,
       state.pendingEdgeSourceAnchor,
       sourceElement,
@@ -215,7 +216,7 @@ export const useEdgeConnector = ({
       scene,
     );
     
-    onElementsChange([newElement, edge]);
+    onElementsChange([...newElements, edge]);
     dispatch({ type: "HIDE_SHAPE_SELECTOR" });
   }, [state, elementsMap, appState, scene, onElementsChange]);
 

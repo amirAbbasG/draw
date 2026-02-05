@@ -1,159 +1,66 @@
 import React, { useEffect, useRef } from "react";
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 import type { AnchorPosition } from "../../edgeConnector";
+import { 
+  LIBRARY_SHAPES, 
+  BUILTIN_SHAPES, 
+  getShapeIconSvg,
+  type LibraryShapeDefinition,
+} from "../../edgeConnector/shapeLibrary";
 
 import "./EdgeConnector.scss";
+
+// Shape selection can be either a built-in type or a library index
+export type ShapeSelection = 
+  | { type: "builtin"; shapeType: ExcalidrawElement["type"] }
+  | { type: "library"; libraryIndex: number };
 
 interface ShapeSelectorProps {
   position: { x: number; y: number };
   anchorPosition: AnchorPosition;
-  onSelectShape: (shapeType: ExcalidrawElement["type"]) => void;
+  onSelectShape: (selection: ShapeSelection) => void;
   onClose: () => void;
 }
 
-// Shape icons SVG paths
-const getShapeIcon = (type: string): React.ReactNode => {
-  const svgProps = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.5,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
+// Combined shape list for display
+interface DisplayShape {
+  id: string;
+  name: string;
+  icon: string;
+  selection: ShapeSelection;
+}
+
+// Create display shapes list
+const createDisplayShapes = (): DisplayShape[] => {
+  const shapes: DisplayShape[] = [];
   
-  switch (type) {
-    case "rectangle":
-      return (
-        <svg {...svgProps}>
-          <rect x="3" y="3" width="18" height="18" rx="1" />
-        </svg>
-      );
-    case "roundedRectangle":
-      return (
-        <svg {...svgProps}>
-          <rect x="3" y="3" width="18" height="18" rx="4" />
-        </svg>
-      );
-    case "ellipse":
-      return (
-        <svg {...svgProps}>
-          <ellipse cx="12" cy="12" rx="9" ry="9" />
-        </svg>
-      );
-    case "diamond":
-      return (
-        <svg {...svgProps}>
-          <path d="M12 2 L22 12 L12 22 L2 12 Z" />
-        </svg>
-      );
-    case "triangle":
-      return (
-        <svg {...svgProps}>
-          <path d="M12 3 L22 21 L2 21 Z" />
-        </svg>
-      );
-    case "triangleDown":
-      return (
-        <svg {...svgProps}>
-          <path d="M12 21 L2 3 L22 3 Z" />
-        </svg>
-      );
-    case "hexagon":
-      return (
-        <svg {...svgProps}>
-          <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z" />
-        </svg>
-      );
-    case "pentagon":
-      return (
-        <svg {...svgProps}>
-          <path d="M12 2 L22 9 L18 22 L6 22 L2 9 Z" />
-        </svg>
-      );
-    case "parallelogram":
-      return (
-        <svg {...svgProps}>
-          <path d="M6 3 L22 3 L18 21 L2 21 Z" />
-        </svg>
-      );
-    case "trapezoid":
-      return (
-        <svg {...svgProps}>
-          <path d="M5 21 L2 3 L22 3 L19 21 Z" />
-        </svg>
-      );
-    case "cylinder":
-      return (
-        <svg {...svgProps}>
-          <ellipse cx="12" cy="5" rx="8" ry="3" />
-          <path d="M4 5 L4 19 C4 21 8 22 12 22 C16 22 20 21 20 19 L20 5" />
-        </svg>
-      );
-    case "database":
-      return (
-        <svg {...svgProps}>
-          <ellipse cx="12" cy="5" rx="8" ry="3" />
-          <path d="M4 5 L4 19 C4 21 8 22 12 22 C16 22 20 21 20 19 L20 5" />
-          <path d="M4 12 C4 14 8 15 12 15 C16 15 20 14 20 12" />
-        </svg>
-      );
-    case "cloud":
-      return (
-        <svg {...svgProps}>
-          <path d="M6 19 C2 19 1 16 3 14 C1 12 2 9 5 9 C5 5 9 4 12 6 C14 3 19 3 20 7 C23 7 24 11 21 13 C24 15 23 19 19 19 Z" />
-        </svg>
-      );
-    case "star":
-      return (
-        <svg {...svgProps}>
-          <path d="M12 2 L14 9 L21 9 L16 14 L18 21 L12 17 L6 21 L8 14 L3 9 L10 9 Z" />
-        </svg>
-      );
-    case "arrow":
-      return (
-        <svg {...svgProps}>
-          <path d="M14 2 L22 12 L14 22 L14 16 L2 16 L2 8 L14 8 Z" />
-        </svg>
-      );
-    case "callout":
-      return (
-        <svg {...svgProps}>
-          <path d="M3 3 L21 3 L21 15 L10 15 L6 21 L6 15 L3 15 Z" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...svgProps}>
-          <rect x="3" y="3" width="18" height="18" rx="1" />
-        </svg>
-      );
+  // Add built-in shapes first
+  for (const builtin of BUILTIN_SHAPES) {
+    shapes.push({
+      id: `builtin-${builtin.type}`,
+      name: builtin.name,
+      icon: builtin.icon,
+      selection: { type: "builtin", shapeType: builtin.type },
+    });
   }
+  
+  // Add library shapes (skip index 2 as it's rounded rectangle similar to rectangle)
+  for (const libShape of LIBRARY_SHAPES) {
+    // Skip duplicate of rectangle
+    if (libShape.index === 2) continue;
+    
+    shapes.push({
+      id: `library-${libShape.index}`,
+      name: libShape.name,
+      icon: libShape.icon,
+      selection: { type: "library", libraryIndex: libShape.index },
+    });
+  }
+  
+  return shapes;
 };
 
-// All available shapes - organized in rows
-const ALL_SHAPES: Array<{ type: string; label: string; excalidrawType: ExcalidrawElement["type"] }> = [
-  // Row 1: Basic shapes
-  { type: "rectangle", label: "Rectangle", excalidrawType: "rectangle" },
-  { type: "roundedRectangle", label: "Rounded Rectangle", excalidrawType: "rectangle" },
-  { type: "ellipse", label: "Ellipse/Circle", excalidrawType: "ellipse" },
-  { type: "diamond", label: "Diamond", excalidrawType: "diamond" },
-  // Row 2: Polygons
-  { type: "triangle", label: "Triangle", excalidrawType: "triangle" },
-  { type: "triangleDown", label: "Triangle Down", excalidrawType: "triangle" },
-  { type: "pentagon", label: "Pentagon", excalidrawType: "pentagon" },
-  { type: "hexagon", label: "Hexagon", excalidrawType: "hexagon" },
-  // Row 3: Special shapes
-  { type: "parallelogram", label: "Parallelogram", excalidrawType: "rectangle" },
-  { type: "trapezoid", label: "Trapezoid", excalidrawType: "rectangle" },
-  { type: "cylinder", label: "Cylinder", excalidrawType: "rectangle" },
-  { type: "database", label: "Database", excalidrawType: "rectangle" },
-  // Row 4: Misc
-  { type: "cloud", label: "Cloud", excalidrawType: "ellipse" },
-  { type: "star", label: "Star", excalidrawType: "diamond" },
-  { type: "arrow", label: "Arrow Shape", excalidrawType: "rectangle" },
-  { type: "callout", label: "Callout", excalidrawType: "rectangle" },
-];
+const DISPLAY_SHAPES = createDisplayShapes();
 
 export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
   position,
@@ -183,15 +90,17 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
     e.stopPropagation();
   };
   
-  const handleShapeClick = (shape: typeof ALL_SHAPES[0]) => (e: React.MouseEvent) => {
+  const handleShapeClick = (shape: DisplayShape) => (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    onSelectShape(shape.excalidrawType);
+    onSelectShape(shape.selection);
   };
 
   // Calculate position to keep popup on screen
-  const popupWidth = 200;
-  const popupHeight = 280;
+  const columns = 5;
+  const popupWidth = columns * 44 + 24; // 44px per button + padding
+  const rows = Math.ceil(DISPLAY_SHAPES.length / columns);
+  const popupHeight = rows * 44 + 50; // 44px per row + header + padding
   let left = position.x - popupWidth / 2;
   let top = position.y + 10;
   
@@ -230,12 +139,12 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
       </div>
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: 6,
+        gridTemplateColumns: `repeat(${columns}, 1fr)`,
+        gap: 4,
       }}>
-        {ALL_SHAPES.map((shape) => (
+        {DISPLAY_SHAPES.map((shape) => (
           <button
-            key={shape.type}
+            key={shape.id}
             style={{
               width: 40,
               height: 40,
@@ -248,10 +157,11 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
               cursor: "pointer",
               transition: "all 0.15s ease",
               color: "var(--color-text, #333)",
+              padding: 0,
             }}
             onClick={handleShapeClick(shape)}
             onMouseDown={(e) => e.stopPropagation()}
-            title={shape.label}
+            title={shape.name}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = "var(--color-primary-light, #e8f0fe)";
               e.currentTarget.style.borderColor = "var(--color-primary, #4f6bed)";
@@ -261,9 +171,10 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
               e.currentTarget.style.borderColor = "var(--color-border, #e0e0e0)";
             }}
           >
-            <div style={{ width: 24, height: 24 }}>
-              {getShapeIcon(shape.type)}
-            </div>
+            <div 
+              style={{ width: 24, height: 24 }}
+              dangerouslySetInnerHTML={{ __html: getShapeIconSvg(shape.icon) }}
+            />
           </button>
         ))}
       </div>
