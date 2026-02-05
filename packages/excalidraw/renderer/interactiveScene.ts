@@ -546,45 +546,53 @@ const renderTransformHandles = (
   angle: number,
 ): void => {
   // First, draw the connecting line from rotation handle to selection box top
+  // The rotation handle and n (north) handle are already positioned correctly
+  // accounting for any rotation, so we just connect their centers
   const rotationHandle = transformHandles.rotation;
+  const nHandle = transformHandles.n;
 
-  if (rotationHandle) {
+  if (rotationHandle && nHandle) {
     const [rotX, rotY, rotWidth, rotHeight] = rotationHandle;
+    const [nX, nY, nW, nH] = nHandle;
+
+    // Center of rotation handle
     const rotCenterX = rotX + rotWidth / 2;
-    const rotBottomY = rotY + rotHeight;
+    const rotCenterY = rotY + rotHeight / 2;
 
-    // Calculate the top center of the selection box from corner handles
-    // Use nw and ne handles to find the top edge, or fall back to n handle
-    const nwHandle = transformHandles.nw;
-    const neHandle = transformHandles.ne;
-    const nHandle = transformHandles.n;
+    // Center of north handle
+    const nCenterX = nX + nW / 2;
+    const nCenterY = nY + nH / 2;
 
-    let topCenterX = rotCenterX;
-    let topY = rotBottomY + 10 / appState.zoom.value; // Default fallback
+    // Calculate the direction from n handle to rotation handle
+    const dx = rotCenterX - nCenterX;
+    const dy = rotCenterY - nCenterY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (nwHandle && neHandle) {
-      // Calculate top center from corner handles
-      const [nwX, nwY, nwW, nwH] = nwHandle;
-      const [neX, neY, neW] = neHandle;
-      topCenterX = (nwX + nwW / 2 + neX + neW / 2) / 2;
-      topY = nwY + nwH / 2;
-    } else if (nHandle) {
-      const [nX, nY, nW, nH] = nHandle;
-      topCenterX = nX + nW / 2;
-      topY = nY + nH / 2;
+    if (dist > 0) {
+      // Normalize direction
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      // Start point: edge of rotation handle circle (towards n handle)
+      const startX = rotCenterX - nx * (rotWidth / 2);
+      const startY = rotCenterY - ny * (rotHeight / 2);
+
+      // End point: edge of n handle (towards rotation handle)
+      const endX = nCenterX + nx * (nW / 2);
+      const endY = nCenterY + ny * (nH / 2);
+
+      context.save();
+      context.strokeStyle = renderConfig.selectionColor || "#6965db";
+      context.lineWidth = 1 / appState.zoom.value;
+
+      // Draw solid line connecting the two handles
+      context.beginPath();
+      context.moveTo(startX, startY);
+      context.lineTo(endX, endY);
+      context.stroke();
+
+      context.restore();
     }
-
-    context.save();
-    context.strokeStyle = renderConfig.selectionColor || "#6965db";
-    context.lineWidth = 1 / appState.zoom.value;
-
-    // Draw solid line from bottom of rotation handle to top of selection
-    context.beginPath();
-    context.moveTo(rotCenterX, rotBottomY);
-    context.lineTo(topCenterX, topY);
-    context.stroke();
-
-    context.restore();
   }
 
   Object.keys(transformHandles).forEach((key) => {
