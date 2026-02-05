@@ -545,28 +545,43 @@ const renderTransformHandles = (
   transformHandles: TransformHandles,
   angle: number,
 ): void => {
-  // First, draw the connecting line from rotation handle to selection box
+  // First, draw the connecting line from rotation handle to selection box top
   const rotationHandle = transformHandles.rotation;
-  const topHandle = transformHandles.n; // north handle is at top center
 
-  if (rotationHandle && topHandle) {
+  if (rotationHandle) {
     const [rotX, rotY, rotWidth, rotHeight] = rotationHandle;
-    const [topX, topY, topWidth, topHeight] = topHandle;
-
     const rotCenterX = rotX + rotWidth / 2;
-    const rotCenterY = rotY + rotHeight / 2;
-    const topCenterX = topX + topWidth / 2;
-    const topCenterY = topY + topHeight / 2;
+    const rotBottomY = rotY + rotHeight;
+
+    // Calculate the top center of the selection box from corner handles
+    // Use nw and ne handles to find the top edge, or fall back to n handle
+    const nwHandle = transformHandles.nw;
+    const neHandle = transformHandles.ne;
+    const nHandle = transformHandles.n;
+
+    let topCenterX = rotCenterX;
+    let topY = rotBottomY + 10 / appState.zoom.value; // Default fallback
+
+    if (nwHandle && neHandle) {
+      // Calculate top center from corner handles
+      const [nwX, nwY, nwW, nwH] = nwHandle;
+      const [neX, neY, neW] = neHandle;
+      topCenterX = (nwX + nwW / 2 + neX + neW / 2) / 2;
+      topY = nwY + nwH / 2;
+    } else if (nHandle) {
+      const [nX, nY, nW, nH] = nHandle;
+      topCenterX = nX + nW / 2;
+      topY = nY + nH / 2;
+    }
 
     context.save();
     context.strokeStyle = renderConfig.selectionColor || "#6965db";
     context.lineWidth = 1 / appState.zoom.value;
-    context.setLineDash([3 / appState.zoom.value, 3 / appState.zoom.value]);
 
-    // Draw line from bottom of rotation handle to top handle
+    // Draw solid line from bottom of rotation handle to top of selection
     context.beginPath();
-    context.moveTo(rotCenterX, rotCenterY + rotHeight / 2);
-    context.lineTo(topCenterX, topCenterY - topHeight / 2);
+    context.moveTo(rotCenterX, rotBottomY);
+    context.lineTo(topCenterX, topY);
     context.stroke();
 
     context.restore();
@@ -585,39 +600,47 @@ const renderTransformHandles = (
       if (key === "rotation") {
         fillCircle(context, x + width / 2, y + height / 2, width / 2, true);
 
-        // Draw rotation icon inside the handle
+        // Draw rotation icon inside the handle - a circular arrow
         const centerX = x + width / 2;
         const centerY = y + height / 2;
-        const iconRadius = width * 0.28;
+        const iconRadius = width * 0.32;
 
         context.save();
         context.strokeStyle = renderConfig.selectionColor || "#6965db";
-        context.lineWidth = 1.2 / appState.zoom.value;
+        context.lineWidth = 1.5 / appState.zoom.value;
         context.lineCap = "round";
+        context.lineJoin = "round";
 
-        // Draw a cleaner circular arrow icon (arc with arrow)
+        // Draw circular arc (about 300 degrees, leaving gap for arrow)
         context.beginPath();
-        // Draw arc from top going clockwise about 270 degrees
-        context.arc(centerX, centerY, iconRadius, -Math.PI * 0.6, Math.PI * 0.9, false);
+        const startAngle = -Math.PI * 0.4; // Start near top-right
+        const endAngle = Math.PI * 1.1; // End near bottom-left
+        context.arc(centerX, centerY, iconRadius, startAngle, endAngle, false);
         context.stroke();
 
-        // Draw arrowhead at the end of the arc
-        const arrowTipAngle = Math.PI * 0.9;
+        // Draw arrowhead at the end of the arc pointing in rotation direction
+        const arrowTipAngle = endAngle;
         const arrowTipX = centerX + iconRadius * Math.cos(arrowTipAngle);
         const arrowTipY = centerY + iconRadius * Math.sin(arrowTipAngle);
-        const arrowLen = iconRadius * 0.6;
+        const arrowLen = iconRadius * 0.55;
 
-        // Two lines forming the arrowhead
+        // Tangent direction at arrow tip (perpendicular to radius, clockwise)
+        const tangentAngle = arrowTipAngle + Math.PI / 2;
+
+        // Draw arrowhead as two lines
         context.beginPath();
         context.moveTo(arrowTipX, arrowTipY);
         context.lineTo(
-          arrowTipX + arrowLen * Math.cos(arrowTipAngle - Math.PI * 0.65),
-          arrowTipY + arrowLen * Math.sin(arrowTipAngle - Math.PI * 0.65),
+          arrowTipX - arrowLen * Math.cos(tangentAngle - Math.PI * 0.25),
+          arrowTipY - arrowLen * Math.sin(tangentAngle - Math.PI * 0.25),
         );
+        context.stroke();
+
+        context.beginPath();
         context.moveTo(arrowTipX, arrowTipY);
         context.lineTo(
-          arrowTipX + arrowLen * Math.cos(arrowTipAngle + Math.PI * 0.35),
-          arrowTipY + arrowLen * Math.sin(arrowTipAngle + Math.PI * 0.35),
+          arrowTipX - arrowLen * Math.cos(tangentAngle + Math.PI * 0.25),
+          arrowTipY - arrowLen * Math.sin(tangentAngle + Math.PI * 0.25),
         );
         context.stroke();
 
