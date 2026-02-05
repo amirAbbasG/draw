@@ -557,6 +557,54 @@ const renderTransformHandles = (
       }
       if (key === "rotation") {
         fillCircle(context, x + width / 2, y + height / 2, width / 2, true);
+
+        // Draw rotation icon inside the handle
+        const iconSize = width * 0.5;
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+
+        context.save();
+        context.strokeStyle = renderConfig.selectionColor || "#6965db";
+        context.lineWidth = 1.5 / appState.zoom.value;
+        context.lineCap = "round";
+
+        // Draw a circular arrow icon
+        context.beginPath();
+        const iconRadius = iconSize * 0.7;
+        // Draw arc (about 270 degrees)
+        context.arc(
+          centerX,
+          centerY,
+          iconRadius,
+          -Math.PI * 0.75,
+          Math.PI * 0.75,
+          false,
+        );
+        context.stroke();
+
+        // Draw arrowhead at the end of the arc
+        const arrowSize = iconRadius * 0.5;
+        const arrowAngle = Math.PI * 0.75;
+        const arrowX = centerX + iconRadius * Math.cos(arrowAngle);
+        const arrowY = centerY + iconRadius * Math.sin(arrowAngle);
+
+        context.beginPath();
+        context.moveTo(arrowX, arrowY);
+        context.lineTo(
+          arrowX + arrowSize * Math.cos(arrowAngle - Math.PI * 0.7),
+          arrowY + arrowSize * Math.sin(arrowAngle - Math.PI * 0.7),
+        );
+        context.stroke();
+
+        context.beginPath();
+        context.moveTo(arrowX, arrowY);
+        context.lineTo(
+          arrowX + arrowSize * Math.cos(arrowAngle + Math.PI * 0.3),
+          arrowY + arrowSize * Math.sin(arrowAngle + Math.PI * 0.3),
+        );
+        context.stroke();
+
+        context.restore();
         // prefer round corners if roundRect API is available
       } else if (context.roundRect) {
         context.beginPath();
