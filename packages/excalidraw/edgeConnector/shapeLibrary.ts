@@ -74,6 +74,49 @@ export interface LibraryShapeResult {
 }
 
 /**
+ * Calculate the actual visual bounding box for a library element
+ * For line elements, this is calculated from the points array
+ * For other elements, it uses the element's x, y, width, height
+ */
+function getElementVisualBounds(element: ExcalidrawElement): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  if (element.type === "line" && (element as ExcalidrawLinearElement).points) {
+    const points = (element as ExcalidrawLinearElement).points;
+    let pMinX = Infinity,
+      pMinY = Infinity,
+      pMaxX = -Infinity,
+      pMaxY = -Infinity;
+
+    for (const [px, py] of points) {
+      pMinX = Math.min(pMinX, px);
+      pMinY = Math.min(pMinY, py);
+      pMaxX = Math.max(pMaxX, px);
+      pMaxY = Math.max(pMaxY, py);
+    }
+
+    // Points are relative to element.x, element.y
+    return {
+      minX: element.x + pMinX,
+      minY: element.y + pMinY,
+      maxX: element.x + pMaxX,
+      maxY: element.y + pMaxY,
+    };
+  }
+
+  // For non-line elements, use the element bounds
+  return {
+    minX: element.x,
+    minY: element.y,
+    maxX: element.x + element.width,
+    maxY: element.y + element.height,
+  };
+}
+
+/**
  * Get library element by index and create a new instance with offset position
  * Returns the library shape elements AND a transparent rectangle for edge binding
  */
@@ -102,17 +145,21 @@ export function createShapeFromLibrary(
   // Clone and transform each element in the library item
   const newElements: ExcalidrawElement[] = [];
 
-  // First, calculate the bounding box of the original library item
+  // First, calculate the ACTUAL visual bounding box of all elements
+  // For line elements, we need to look at the points, not just width/height
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity;
+
   for (const element of libraryItem) {
-    minX = Math.min(minX, element.x);
-    minY = Math.min(minY, element.y);
-    maxX = Math.max(maxX, element.x + element.width);
-    maxY = Math.max(maxY, element.y + element.height);
+    const bounds = getElementVisualBounds(element);
+    minX = Math.min(minX, bounds.minX);
+    minY = Math.min(minY, bounds.minY);
+    maxX = Math.max(maxX, bounds.maxX);
+    maxY = Math.max(maxY, bounds.maxY);
   }
+
   const origWidth = maxX - minX;
   const origHeight = maxY - minY;
 
@@ -121,33 +168,67 @@ export function createShapeFromLibrary(
   const scaleY = height / origHeight;
 
   for (const element of libraryItem) {
-    // Calculate relative position within the original bounding box
-    const relX = element.x - minX;
-    const relY = element.y - minY;
-
-    // Create new element with new ID and scaled position
-    const newElement = {
-      ...element,
-      id: randomId(),
-      x: x + relX * scaleX,
-      y: y + relY * scaleY,
-      width: element.width * scaleX,
-      height: element.height * scaleY,
-      updated: getUpdatedTimestamp(),
-      version: 1,
-      versionNonce: Math.floor(Math.random() * 1000000000),
-      // Keep the original colors from the library
-      groupIds: [groupId],
-    };
-
-    // Scale points if it's a line element
     if (element.type === "line" && (element as ExcalidrawLinearElement).points) {
-      const originalPoints = (element as ExcalidrawLinearElement).points;
-      const scaledPoints = originalPoints.map(([px, py]) => [px * scaleX, py * scaleY]);
-      (newElement as ExcalidrawLinearElement).points = scaledPoints as [number, number][];
-    }
+      // For line elements, we need to:
+      // 1. Get the visual bounds from points
+      // 2. Normalize the points so they start from the new position
+      // 3. Scale the points
 
-    newElements.push(newElement as ExcalidrawElement);
+      const points = (element as ExcalidrawLinearElement).points;
+
+      // Find the min point values
+      let pMinX = Infinity,
+        pMinY = Infinity;
+      for (const [px, py] of points) {
+        pMinX = Math.min(pMinX, px);
+        pMinY = Math.min(pMinY, py);
+      }
+
+      // Calculate where this element's visual content starts relative to the overall bounding box
+      const visualStartX = element.x + pMinX;
+      const visualStartY = element.y + pMinY;
+      const relX = visualStartX - minX;
+      const relY = visualStartY - minY;
+
+      // Normalize and scale points (shift so min point is at 0,0, then scale)
+      const scaledPoints = points.map(([px, py]) => [(px - pMinX) * scaleX, (py - pMinY) * scaleY]);
+
+      // Create new element positioned correctly
+      const newElement = {
+        ...element,
+        id: randomId(),
+        x: x + relX * scaleX,
+        y: y + relY * scaleY,
+        width: element.width * scaleX,
+        height: element.height * scaleY,
+        points: scaledPoints as [number, number][],
+        updated: getUpdatedTimestamp(),
+        version: 1,
+        versionNonce: Math.floor(Math.random() * 1000000000),
+        groupIds: [groupId],
+      };
+
+      newElements.push(newElement as ExcalidrawElement);
+    } else {
+      // For non-line elements
+      const relX = element.x - minX;
+      const relY = element.y - minY;
+
+      const newElement = {
+        ...element,
+        id: randomId(),
+        x: x + relX * scaleX,
+        y: y + relY * scaleY,
+        width: element.width * scaleX,
+        height: element.height * scaleY,
+        updated: getUpdatedTimestamp(),
+        version: 1,
+        versionNonce: Math.floor(Math.random() * 1000000000),
+        groupIds: [groupId],
+      };
+
+      newElements.push(newElement as ExcalidrawElement);
+    }
   }
 
   // Create a transparent rectangle that covers the shape for edge binding
