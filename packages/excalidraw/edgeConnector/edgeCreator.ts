@@ -312,10 +312,10 @@ export const createShapeFromSelectionWithEdge = (
 ): { newElements: ExcalidrawElement[]; edge: ExcalidrawElbowArrowElement } => {
   // Default shape size
   const defaultSize = { width: 100, height: 100 };
-  
+
   let newElements: ExcalidrawElement[] = [];
   let bindableElement: ExcalidrawBindableElement;
-  
+
   if (selection.type === "builtin") {
     // Create built-in shape
     const newShape = newElement({
@@ -335,16 +335,16 @@ export const createShapeFromSelectionWithEdge = (
     newElements = [newShape];
     bindableElement = newShape as ExcalidrawBindableElement;
   } else {
-    // Create library shape
-    const libraryElements = createShapeFromLibrary(
+    // Create library shape - returns elements AND a bindable rectangle
+    const libraryResult = createShapeFromLibrary(
       selection.libraryIndex,
       position.x - defaultSize.width / 2,
       position.y - defaultSize.height / 2,
       defaultSize.width,
       defaultSize.height,
     );
-    
-    if (libraryElements.length === 0) {
+
+    if (!libraryResult) {
       // Fallback to rectangle if library shape fails
       const fallbackShape = newElement({
         type: "rectangle",
@@ -363,12 +363,13 @@ export const createShapeFromSelectionWithEdge = (
       newElements = [fallbackShape];
       bindableElement = fallbackShape as ExcalidrawBindableElement;
     } else {
-      newElements = libraryElements;
-      // Use first element as bindable element (library shapes are typically single elements)
-      bindableElement = libraryElements[0] as ExcalidrawBindableElement;
+      // Use the result from library - elements include the bindable rect
+      newElements = libraryResult.elements;
+      // Use the transparent rectangle as the bindable element for edge connection
+      bindableElement = libraryResult.bindableElement as ExcalidrawBindableElement;
     }
   }
-  
+
   // Get bounds of the new shape(s) for anchor calculation
   const shapeBounds = {
     x: position.x - defaultSize.width / 2,
@@ -376,25 +377,22 @@ export const createShapeFromSelectionWithEdge = (
     width: defaultSize.width,
     height: defaultSize.height,
   };
-  
+
   // Calculate target anchor on new shape (opposite side from source)
   const targetPosition = getOppositeAnchorPosition(sourceAnchor.position);
   const targetAnchor: ShapeAnchor = {
     position: targetPosition,
-    x: shapeBounds.x + (targetPosition === "right" ? shapeBounds.width : targetPosition === "left" ? 0 : shapeBounds.width / 2),
-    y: shapeBounds.y + (targetPosition === "bottom" ? shapeBounds.height : targetPosition === "top" ? 0 : shapeBounds.height / 2),
+    x:
+      shapeBounds.x +
+      (targetPosition === "right" ? shapeBounds.width : targetPosition === "left" ? 0 : shapeBounds.width / 2),
+    y:
+      shapeBounds.y +
+      (targetPosition === "bottom" ? shapeBounds.height : targetPosition === "top" ? 0 : shapeBounds.height / 2),
     elementId: bindableElement.id,
   };
-  
+
   // Create edge
-  const edge = createEdgeBetweenAnchors(
-    sourceAnchor,
-    targetAnchor,
-    sourceElement,
-    bindableElement,
-    appState,
-    scene,
-  );
-  
+  const edge = createEdgeBetweenAnchors(sourceAnchor, targetAnchor, sourceElement, bindableElement, appState, scene);
+
   return { newElements, edge };
 };

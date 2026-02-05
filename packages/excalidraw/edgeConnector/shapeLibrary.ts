@@ -18,38 +18,43 @@ export interface LibraryShapeDefinition {
 }
 
 // Library shape definitions with icons and indices
-// Based on basic-shapes.json library structure
+// Based on actual basic-shapes.json library structure (verified by inspection)
+// Index 0-7: Basic shapes row 1
+// Index 8-11: Trapezoids row
+// Index 12-15: Stars row
+// Index 16: Heart, 17: Cross, 18-19: Arrows
+// Index 20: Lightning, 21: Crescent, 22: Boat
+// Index 23: Circle (ellipse)
 export const LIBRARY_SHAPES: LibraryShapeDefinition[] = [
-  // Row 1: Basic triangles and rectangle
+  // Row 1: Basic triangles and polygons
   { name: "Right Triangle", index: 0, icon: "right-triangle" },
   { name: "Triangle", index: 1, icon: "triangle" },
   { name: "Rounded Rectangle", index: 2, icon: "rounded-rectangle" },
   { name: "Pentagon", index: 3, icon: "pentagon" },
-  // Row 2: Hexagons and polygons  
   { name: "Hexagon", index: 4, icon: "hexagon" },
   { name: "Octagon", index: 5, icon: "octagon" },
   { name: "Decagon", index: 6, icon: "decagon" },
   { name: "Dodecagon", index: 7, icon: "dodecagon" },
-  // Row 3: Trapezoids
+  // Row 2: Trapezoids and parallelograms
   { name: "Trapezoid", index: 8, icon: "trapezoid" },
   { name: "Parallelogram", index: 9, icon: "parallelogram" },
   { name: "Chevron", index: 10, icon: "chevron" },
   { name: "Notched Chevron", index: 11, icon: "notched-chevron" },
-  // Row 4: Teardrop and stars
+  // Row 3: Teardrop and stars
   { name: "Teardrop", index: 12, icon: "teardrop" },
   { name: "4-Point Star", index: 13, icon: "star-4" },
   { name: "5-Point Star", index: 14, icon: "star-5" },
   { name: "6-Point Star", index: 15, icon: "star-6" },
-  // Row 5: Heart, cross, arrows
+  // Row 4: Heart and cross
   { name: "Heart", index: 16, icon: "heart" },
   { name: "Cross", index: 17, icon: "cross" },
+  // Row 5: Arrows (indices 18-19)
   { name: "Arrow Up", index: 18, icon: "arrow-up" },
   { name: "Arrow Down", index: 19, icon: "arrow-down" },
-  // Row 6: Lightning, moon, boat
+  // Row 6: Special shapes
   { name: "Lightning", index: 20, icon: "lightning" },
   { name: "Crescent Moon", index: 21, icon: "crescent" },
   { name: "Boat", index: 22, icon: "boat" },
-  // More shapes...
 ];
 
 // Built-in Excalidraw shapes (not from library)
@@ -60,7 +65,17 @@ export const BUILTIN_SHAPES = [
 ];
 
 /**
+ * Result from creating a shape from the library
+ * Includes both the visual elements and a separate bindable element for edge connections
+ */
+export interface LibraryShapeResult {
+  elements: ExcalidrawElement[];
+  bindableElement: ExcalidrawElement; // Rectangle for binding edges
+}
+
+/**
  * Get library element by index and create a new instance with offset position
+ * Returns the library shape elements AND a transparent rectangle for edge binding
  */
 export function createShapeFromLibrary(
   libraryIndex: number,
@@ -68,57 +83,108 @@ export function createShapeFromLibrary(
   y: number,
   width: number = 150,
   height: number = 150,
-): ExcalidrawElement[] {
+): LibraryShapeResult | null {
   const library = basicShapesLibrary;
-  
+
   if (libraryIndex < 0 || libraryIndex >= library.library.length) {
     console.warn(`Invalid library index: ${libraryIndex}`);
-    return [];
+    return null;
   }
-  
+
   const libraryItem = library.library[libraryIndex];
   if (!libraryItem || libraryItem.length === 0) {
-    return [];
+    return null;
   }
-  
+
+  // Create a group ID for all elements
+  const groupId = randomId();
+
   // Clone and transform each element in the library item
   const newElements: ExcalidrawElement[] = [];
-  
+
+  // First, calculate the bounding box of the original library item
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const element of libraryItem) {
-    // Calculate scale factors
-    const scaleX = width / element.width;
-    const scaleY = height / element.height;
-    
-    // Create new element with new ID and position
+    minX = Math.min(minX, element.x);
+    minY = Math.min(minY, element.y);
+    maxX = Math.max(maxX, element.x + element.width);
+    maxY = Math.max(maxY, element.y + element.height);
+  }
+  const origWidth = maxX - minX;
+  const origHeight = maxY - minY;
+
+  // Calculate scale factors
+  const scaleX = width / origWidth;
+  const scaleY = height / origHeight;
+
+  for (const element of libraryItem) {
+    // Calculate relative position within the original bounding box
+    const relX = element.x - minX;
+    const relY = element.y - minY;
+
+    // Create new element with new ID and scaled position
     const newElement = {
       ...element,
       id: randomId(),
-      x: x,
-      y: y,
-      width: width,
-      height: height,
+      x: x + relX * scaleX,
+      y: y + relY * scaleY,
+      width: element.width * scaleX,
+      height: element.height * scaleY,
       updated: getUpdatedTimestamp(),
       version: 1,
       versionNonce: Math.floor(Math.random() * 1000000000),
-      // Make background transparent
-      backgroundColor: "transparent",
-      strokeColor: "#1e1e1e",
+      // Keep the original colors from the library
+      groupIds: [groupId],
     };
-    
+
     // Scale points if it's a line element
     if (element.type === "line" && (element as ExcalidrawLinearElement).points) {
       const originalPoints = (element as ExcalidrawLinearElement).points;
-      const scaledPoints = originalPoints.map(([px, py]) => [
-        px * scaleX,
-        py * scaleY,
-      ]);
+      const scaledPoints = originalPoints.map(([px, py]) => [px * scaleX, py * scaleY]);
       (newElement as ExcalidrawLinearElement).points = scaledPoints as [number, number][];
     }
-    
+
     newElements.push(newElement as ExcalidrawElement);
   }
-  
-  return newElements;
+
+  // Create a transparent rectangle that covers the shape for edge binding
+  // This rectangle will be the bindable element
+  const bindableRect: ExcalidrawElement = {
+    id: randomId(),
+    type: "rectangle",
+    x: x,
+    y: y,
+    width: width,
+    height: height,
+    angle: 0,
+    strokeColor: "transparent",
+    backgroundColor: "transparent",
+    fillStyle: "solid",
+    strokeWidth: 0,
+    strokeStyle: "solid",
+    roughness: 0,
+    opacity: 0, // Fully transparent
+    groupIds: [groupId],
+    frameId: null,
+    index: null,
+    roundness: null,
+    seed: Math.floor(Math.random() * 1000000000),
+    version: 1,
+    versionNonce: Math.floor(Math.random() * 1000000000),
+    isDeleted: false,
+    boundElements: null,
+    updated: getUpdatedTimestamp(),
+    link: null,
+    locked: false,
+  } as ExcalidrawElement;
+
+  return {
+    elements: [bindableRect, ...newElements], // Bindable rect first, then visual elements
+    bindableElement: bindableRect,
+  };
 }
 
 /**
