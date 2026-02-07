@@ -424,6 +424,18 @@ export const ArrowIcon = createIcon(
   tablerIconProps,
 );
 
+// Edge connector icon - two shapes connected by a line
+export const EdgeConnectorIcon = createIcon(
+    <g strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="6" height="6" rx="1" />
+        <rect x="15" y="15" width="6" height="6" rx="1" />
+        <path d="M9 6h2l4 4v2" />
+        <circle cx="9" cy="6" r="1.5" fill="currentColor" />
+        <circle cx="15" cy="12" r="1.5" fill="currentColor" />
+    </g>,
+    tablerIconProps,
+);
+
 // custom?
 export const LineIcon = createIcon(
   <path

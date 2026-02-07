@@ -50,7 +50,7 @@ const PromptTextarea: FC<IProps> = ({
 
       <div className="relative w-full h-fit group ">
         <SpeechToText
-          className="absolute start-1.5 top-2"
+          className="absolute start-1.5 top-1.5"
           size="xs"
           transcript={value}
           setTranscript={val => setValue(value ? value + " " + val : value)}
@@ -65,11 +65,12 @@ const PromptTextarea: FC<IProps> = ({
           className={cn(
             "w-full !pb-8 !pe-2.5 !pt-2  !ps-8 !rounded-[8px]  focus-visible:ring-0 focus-visible:outline-none",
             promptVariant({ variant: "prompt", color: "input" }),
+            "!text-sm placeholder:!text-sm bg-background-lighter",
             textAreaClassName,
           )}
         />
 
-        <div className="absolute bottom-2 justify-end bg-background-light group-focus-within:bg-background-lighter  pb-0.5 inset-x-2.5 flex   gap-0.5 ">
+        <div className="absolute bottom-2 justify-end bg-background-lighter  pb-0.5 inset-x-2.5 flex   gap-0.5 ">
           <RenderIf isTrue={!!value.trim().length}>
             <AppIconButton
               icon={sharedIcons.delete}

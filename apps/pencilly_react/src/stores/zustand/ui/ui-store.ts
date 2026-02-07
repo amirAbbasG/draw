@@ -16,7 +16,7 @@ const initialState: UiState = {
   activeHistory: "",
   activeVersionId: "",
   hideComments: false,
-  langCode: getPreferredLanguage() || "en"
+  langCode: getPreferredLanguage() || "en",
 };
 
 export const useUiStoreSelector = create<UiState>()(

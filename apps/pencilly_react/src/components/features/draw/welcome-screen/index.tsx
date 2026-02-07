@@ -41,12 +41,12 @@ const AppWelcomeScreen: React.FC<{
           </div>
         </WelcomeScreen.Center.Logo>
         <WelcomeScreen.Center.Heading>
-          <span className="block text-balance">{t("app.center_heading")}</span>
+          <span className="block text-balance text-base">{t("app.center_heading")}</span>
         </WelcomeScreen.Center.Heading>
         <WelcomeScreen.Center.Menu
           className={cn(
             // "max-lg:!hidden",
-            isAuth ? "!max-w-sm md:!max-w-2xl" : "max-w-sm md:!max-w-4xl",
+            isAuth ? "!max-w-sm md:!max-w-lg" : "max-w-sm md:!max-w-[720px]",
           )}
         >
           <WelcomeScreen.Center.MenuItemLoadScene />
@@ -55,7 +55,7 @@ const AppWelcomeScreen: React.FC<{
             <WelcomeScreen.Center.MenuItem
               onSelect={() => setIsAuthPopupOpen(true)}
               shortcut={null}
-              icon={<AppIcon icon={sharedIcons.logout} className="size-7" />}
+              icon={<AppIcon icon={sharedIcons.logout} className="h-full w-full p-[1px]" />}
               description="Access your saved drawings"
             >
               {t("defaults.login")}

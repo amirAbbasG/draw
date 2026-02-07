@@ -65,7 +65,7 @@ const ImprovePopup: FC<IProps> = ({
 
   const handleQuickPrompt = (qp: string) => {
     setPrompt(qp);
-    improve(qp);
+    // improve(qp);
   };
 
   return (
@@ -125,9 +125,10 @@ const ImprovePopup: FC<IProps> = ({
             className="w-full "
             icon={improveConfig.icon}
           >
-            {useSelection
-              ? t("improve_popup.submit_selected")
-              : t("improve_popup.submit_all")}
+            {/*{useSelection*/}
+            {/*  ? t("improve_popup.submit_selected")*/}
+            {/*  : t("improve_popup.submit_all")}*/}
+              {t("improve_popup.submit")}
           </Button>
           </CreditConfirmationPopover>
       </PopoverContent>

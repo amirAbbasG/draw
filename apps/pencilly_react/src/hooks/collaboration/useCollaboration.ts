@@ -13,6 +13,9 @@ import { useCollabAwareness } from "./useCollabAwareness";
 import { useCollabCommands } from "./useCollabCommands";
 import { useCollabSync } from "./useCollabSync";
 import { useYjsSession } from "./useYjsSession";
+import {setCallData, setCollaborators, setRoomId} from "@/stores/zustand/collaborate/actions";
+import {useCollaborateStore} from "@/stores/zustand/collaborate/collaborate-store";
+import {useShallow} from "zustand/react/shallow";
 
 export interface PendingJoinRequest {
   id: string;
@@ -22,18 +25,19 @@ export interface PendingJoinRequest {
 }
 
 interface Params {
-  drawAPI: any;
+  drawAPI: DrawAPI;
   onDestroy?: () => void;
   setIsOpenShare: (isOpen: boolean) => void;
 }
+
 
 export const useCollaboration = ({ drawAPI, onDestroy, setIsOpenShare }: Params) => {
   const { user: userData } = useUser();
   const t = useTranslations("collaboration");
   const storageName = localStorage.getItem("pencilly-username");
 
+  const [roomId, collaborators] = useCollaborateStore(useShallow(state => [state.roomId, state.collaborators]))
   // --- State ---
-  const [roomId, setRoomId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [collabErrorMessage, setCollabErrorMessage] = useState<string | null>(
     null,
@@ -75,10 +79,10 @@ export const useCollaboration = ({ drawAPI, onDestroy, setIsOpenShare }: Params)
     reconnectAttempts,
     setConnectionError: setYjsError,
     wsUrlRef,
-  } = useYjsSession();
+  } = useYjsSession(drawAPI);
 
   // --- 2. Awareness ---
-  const { collaborators, onPointerUpdate, setCollaborators } =
+  const { onPointerUpdate } =
     useCollabAwareness(
       providerRef,
       drawAPI,
@@ -183,7 +187,8 @@ export const useCollaboration = ({ drawAPI, onDestroy, setIsOpenShare }: Params)
       const handleMessage = (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "room:info") {
+          console.log(data)
+          if (data?.type === "room:info") {
             roomInfoRef.current = data;
 
             if (data.role === "owner") {
@@ -196,12 +201,15 @@ export const useCollaboration = ({ drawAPI, onDestroy, setIsOpenShare }: Params)
               roomInfo: data,
             });
           }
-          if (data.type === "room:permission") {
+          if (data?.type === "room:permission") {
             roomInfoRef.current = { ...roomInfoRef.current, scope: data.scope };
             providerRef.current?.awareness.setLocalStateField("user", {
               ...providerRef.current.awareness.getLocalState()?.user,
               roomInfo: roomInfoRef.current,
             });
+          }
+          if (data?.type === "room:call_invite") {
+            setCallData(data)
           }
         } catch (e) {
           /* ignore */
@@ -406,16 +414,13 @@ export const useCollaboration = ({ drawAPI, onDestroy, setIsOpenShare }: Params)
     setShareLink,
     setUsername,
     setErrorMessage,
-    setCollaborators,
 
     // State values
-    collaborators,
     isCollaborating,
     isOffline,
     isCollabAnimating,
     collabErrorMessage,
     errorMessage,
-    roomId,
     shareLink,
     username,
 

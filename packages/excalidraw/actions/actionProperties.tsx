@@ -1421,11 +1421,11 @@ export const actionChangeRoundnessValue = register({
         }
 
         // If value is 0, remove roundness
-        if (value === 0) {
-          return newElementWith(el, {
-            roundness: null,
-          });
-        }
+        // if (value === 0) {
+        //   return newElementWith(el, {
+        //     roundness: null,
+        //   });
+        // }
 
         const roundnessType = el.roundness?.type ||
             (isUsingAdaptiveRadius(el.type)

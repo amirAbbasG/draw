@@ -17,20 +17,30 @@ import { useTranslations } from "@/i18n";
 
 interface IProps {
   drawAPI: DrawAPI;
-  collabAPI: CollabAPI;
+  isCollaborating: boolean;
+  isOffline: boolean;
+    isCollabViewMode: boolean;
   isExporting: boolean;
+  isOwner: boolean;
+  collabErrorMessage: string;
+  sendKickMessage: (collaboratorId: string) => void;
   openShare: () => void;
   collapseTop: boolean;
   setCollapseTop: StateSetter<boolean>;
 }
 
 const TopTools: FC<IProps> = ({
-  collabAPI,
   drawAPI,
   isExporting,
   openShare,
   collapseTop,
   setCollapseTop,
+    isCollaborating,
+    isOffline,
+    isCollabViewMode,
+    isOwner,
+    collabErrorMessage,
+    sendKickMessage,
 }) => {
   const t = useTranslations("draw_tools");
   const isFullScreen = useUiStore(useShallow(s => s.isFullScreenDraw));
@@ -39,7 +49,7 @@ const TopTools: FC<IProps> = ({
   return (
     <>
       <div className="rounded  shadow-island bg-background-lighter dark:bg-[#232329] row  absolute left-1/2  -translate-x-1/2 p-0.5 gap-0.5 ">
-        <RenderIf isTrue={!collabAPI.isCollabViewMode}>
+        <RenderIf isTrue={!isCollabViewMode}>
           <AITriggers drawAPI={drawAPI} />
 
           <DynamicButton
@@ -72,23 +82,20 @@ const TopTools: FC<IProps> = ({
           />
         </RenderIf>
         <ShareTrigger
-          isCollaborating={collabAPI.isCollaborating}
-          collabErrorMessage={collabAPI.collabErrorMessage}
+          isCollaborating={isCollaborating}
+          collabErrorMessage={collabErrorMessage}
           isExporting={isExporting}
           onClick={openShare}
-          collaborators={collabAPI.collaborators}
         />
       </div>
-      <RenderIf isTrue={collabAPI.isCollaborating && !collabAPI.isOffline}>
+      <RenderIf isTrue={isCollaborating && isOffline}>
         <CollaboratorsPopup
-          collaborators={collabAPI.collaborators}
-          setCollaborators={collabAPI.setCollaborators}
-          isCurrentOwner={collabAPI.isOwner}
-          sendKickCollaboratorMessage={collabAPI.sendKickMessage}
+          isCurrentOwner={isOwner}
+          sendKickCollaboratorMessage={sendKickMessage}
         />
       </RenderIf>
 
-      <RenderIf isTrue={collabAPI.isCollaborating && collabAPI.isOffline}>
+      <RenderIf isTrue={isCollaborating && isOffline}>
         <div className="h-10 centered-col">
           <AppTooltip title={tAlerts("collabOfflineWarning")} asChild={false}>
             <AppIcon

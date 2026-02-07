@@ -5,6 +5,7 @@ import type {AppState, BinaryFiles, LibraryItems} from "@excalidraw/excalidraw/t
 import { getUsedFiles } from "@/lib/draw/export";
 
 import { clearAppStateForLocalStorage, getDefaultAppState } from "./app-state";
+import {restore} from "@excalidraw/excalidraw";
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -264,3 +265,34 @@ export const importLibraryFromLocalStorage = (): LibraryItems | null => {
     }
     return libraryItems;
 }
+
+export const initializeScene = async () => {
+  // Load from current page in pagination storage
+  const activePageId = loadActivePageId();
+
+  if (activePageId) {
+    const pageData = loadPageData(activePageId);
+
+    if (pageData) {
+      return restore(
+          {
+            elements: pageData.elements,
+            appState: pageData.appState,
+            files: pageData.files,
+          },
+          null,
+          null,
+          {
+            repairBindings: true,
+            deleteInvisibleElements: true,
+          },
+      );
+    }
+  }
+
+  // If no pagination data, return empty scene
+  return restore(null, null, null, {
+    repairBindings: true,
+    deleteInvisibleElements: true,
+  });
+};

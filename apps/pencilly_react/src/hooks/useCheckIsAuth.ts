@@ -14,9 +14,9 @@ export const useCheckIsAuth = () => {
 
   const fnWithAuth = <T = undefined>(fn: (arg?: T) => void, pro: boolean = false) => {
     if (!isAuth ) return goAuth;
-    // if(pro && !isProUser && !user?.plan.credits_amount){
-    //   return () => setIsUpgradePopupOpen(true)
-    // }
+    if(pro && !isProUser && !user?.plan?.credits_amount){
+      return () => setIsUpgradePopupOpen(true)
+    }
     return fn;
   };
 

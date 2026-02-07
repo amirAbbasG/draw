@@ -2,8 +2,11 @@ import { useState } from "react";
 
 import { Collaborator, SocketId } from "@excalidraw/excalidraw/types";
 import { useMutation } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAxiosFetcher } from "@/hooks/useAxiosFetch";
+import { setCollaborators } from "@/stores/zustand/collaborate/actions";
+import { useCollaborateStore } from "@/stores/zustand/collaborate/collaborate-store";
 
 interface Params {
   user_id?: number;
@@ -16,11 +19,9 @@ interface SetScopeParams extends Params {
   scope: Collaborator["roomInfo"]["scope"];
 }
 
-export const useCollaboratorsActions = (
-  collaborators: CollabAPI["collaborators"],
-  setCollaborators: CollabAPI["setCollaborators"],
-) => {
+export const useCollaboratorsActions = () => {
   const { axiosFetch } = useAxiosFetcher();
+  const collaborators = useCollaborateStore(useShallow(s => s.collaborators));
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [pendingId, setPendingId] = useState("");
   const [selectedCollaborator, setSelectedCollaborator] = useState<
@@ -42,11 +43,9 @@ export const useCollaboratorsActions = (
         // Optimistic update
         const prevCollaborators = new Map(collaborators);
 
-        setCollaborators(prev => {
-          const newCollaborators = new Map(prev);
-          newCollaborators.delete(id as SocketId);
-          return newCollaborators;
-        });
+        const newCollaborators = new Map(collaborators);
+        newCollaborators.delete(id as SocketId);
+        setCollaborators(newCollaborators);
         return { prevCollaborators };
       },
       onError: (_err, _variables, context) => {
@@ -71,20 +70,18 @@ export const useCollaboratorsActions = (
       // Optimistic update
       const prevCollaborators = new Map(collaborators);
 
-      setCollaborators(prev => {
-        const newCollaborators = new Map(prev);
-        const collaborator = newCollaborators.get(id as SocketId);
-        if (collaborator && collaborator.roomInfo) {
-          newCollaborators.set(id as SocketId, {
-            ...collaborator,
-            roomInfo: {
-              ...collaborator.roomInfo,
-              scope,
-            },
-          });
-        }
-        return newCollaborators;
-      });
+      const newCollaborators = new Map(collaborators);
+      const collaborator = newCollaborators.get(id as SocketId);
+      if (collaborator && collaborator.roomInfo) {
+        newCollaborators.set(id as SocketId, {
+          ...collaborator,
+          roomInfo: {
+            ...collaborator.roomInfo,
+            scope,
+          },
+        });
+      }
+      setCollaborators(newCollaborators);
       return { prevCollaborators };
     },
     onError: (_err, _variables, context) => {

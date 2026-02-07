@@ -10,6 +10,7 @@ import { useAxiosFetcher } from "@/hooks/useAxiosFetch";
 import { useCustomSearchParams } from "@/hooks/useCustomSearchParams";
 import { CALL_SESSION_KEY } from "@/constants/keys";
 import { useTranslations } from "@/i18n";
+import {envs} from "@/constants/envs";
 
 // API endpoints
 const API_BASE = "/stream/sessions";
@@ -33,6 +34,10 @@ export function useStreamSession({ onError }: UseStreamSessionOptions = {}) {
         method: "post",
         url: API_BASE + "/",
         showError: true,
+      },{
+        "only_chat": false,
+        "encrypted": false,
+        "is_public":  envs.isDev
       });
       if (data) {
         setSession(data);

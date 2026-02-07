@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, { useCallback, useState } from "react";
 
 import { useIsDarkMode } from "@/hooks/useIsDarkMode";
 
@@ -23,9 +23,9 @@ interface IProps {
 const Draw = ({ drawAPI, setDrawAPI }: PropsWithChildren<IProps>) => {
   const isDark = useIsDarkMode();
   const locale = useLocale();
-    const [isOpenShare, setIsOpenShare] = useState(false);
+  const [isOpenShare, setIsOpenShare] = useState(false);
 
-  const collabAPI = useCollaboration({ drawAPI,  setIsOpenShare });
+  const collabAPI = useCollaboration({ drawAPI, setIsOpenShare });
 
   // stable callback for excalidrawAPI to avoid re-creating the function each render
   const handleExcalidrawAPI = useCallback(
@@ -52,8 +52,8 @@ const Draw = ({ drawAPI, setDrawAPI }: PropsWithChildren<IProps>) => {
       <DrawWrapper
         collabAPI={collabAPI}
         drawAPI={drawAPI}
-          isOpenShare={isOpenShare}
-            setIsOpenShare={setIsOpenShare}
+        isOpenShare={isOpenShare}
+        setIsOpenShare={setIsOpenShare}
         excalidrawAPI={handleExcalidrawAPI}
         onChange={(elements, appState, files) => {
           syncCollaboration(elements, appState, files);
@@ -78,7 +78,6 @@ const Draw = ({ drawAPI, setDrawAPI }: PropsWithChildren<IProps>) => {
         onApprove={approveJoinRequest}
         onDeny={denyJoinRequest}
       />
-
 
       {/*<CommentMarkers elements={elements} drawAPI={drawAPI} />*/}
     </>

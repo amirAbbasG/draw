@@ -55,7 +55,9 @@ export const toggleHideComments = (value?: boolean) => {
 };
 
 export const setLangCode = (value: string) => {
-
+  useUiStore.setState(state => {
+    state.langCode = value
+  });
 };
 
 
@@ -64,3 +66,4 @@ export const toggleDrawFullScreen = (value?: boolean) => {
     state.isFullScreenDraw = value ?? !state.isFullScreenDraw
   });
 }
+

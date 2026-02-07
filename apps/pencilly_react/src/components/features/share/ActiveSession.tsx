@@ -13,22 +13,21 @@ import { useTranslations } from "@/i18n";
 import {AppTooltip} from "@/components/ui/custom/app-tooltip";
 import {UserAvatar} from "@/components/features/user/UserAvatar";
 import {getClientColor} from "@excalidraw/excalidraw";
+import {useCollaborateStore} from "@/stores/zustand/collaborate/collaborate-store";
+import {useShallow} from "zustand/react/shallow";
 
 interface IProps {
   stopSession: () => void;
-  roomId: string;
   userName: string;
-  collaborators: CollabAPI["collaborators"];
 }
 
 
 const ActiveSession: FC<IProps> = ({
-  collaborators,
-  roomId,
   stopSession,
   userName,
 }) => {
   const t = useTranslations("share");
+  const [collaborators, roomId] = useCollaborateStore(useShallow(s => [s.collaborators, s.roomId]));
 
   const participantCount = collaborators.size;
 

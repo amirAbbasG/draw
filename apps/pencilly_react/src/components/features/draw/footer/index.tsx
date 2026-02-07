@@ -1,7 +1,11 @@
 import React from "react";
 
+
+
 import { Footer } from "@excalidraw/excalidraw";
 import { useShallow } from "zustand/react/shallow";
+
+
 
 import DesktopPagination from "@/components/features/draw/pagination/DesktopPagination";
 import type { usePaginationActions } from "@/components/features/draw/pagination/usePaginationActions";
@@ -13,6 +17,10 @@ import { toggleDrawFullScreen } from "@/stores/zustand/ui/actions";
 import { useUiStore } from "@/stores/zustand/ui/ui-store";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
+
+
+
+
 
 interface IProps {
   paginationAPI: ReturnType<typeof usePaginationActions>;
@@ -57,7 +65,10 @@ const DrawFooter = React.memo(
             icon={isFullScreen ? sharedIcons.shrink : sharedIcons.expand}
             title={isFullScreen ? t("exit_full_screen") : t("full_screen")}
             variant="secondary"
-            className=" aspect-square ms-auto !h-8 4xl:!h-9"
+            className={cn(
+                " aspect-square ms-auto !h-8 4xl:!h-9 ",
+                isFullScreen && collapseFooter && "!fixed !bottom-16 !end-3"
+            )}
             hideLabel
           />
         </Footer>

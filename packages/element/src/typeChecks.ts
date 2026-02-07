@@ -312,6 +312,7 @@ export const isArrowBoundToElement = (element: ExcalidrawArrowElement) => {
 
 export const isUsingAdaptiveRadius = (type: string) =>
   type === "rectangle" ||
+  type === "diamond" ||
   type === "triangle" ||
   type === "pentagon" ||
   type === "hexagon" ||

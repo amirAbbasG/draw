@@ -3,7 +3,7 @@ import { KEYS } from "@excalidraw/common";
 import type { AppClassProperties } from "../types";
 import {
   ArrowIcon,
-  DiamondIcon,
+  DiamondIcon, EdgeConnectorIcon,
   EllipseIcon,
   EraserIcon,
   FreedrawIcon, HexagonIcon,
@@ -108,6 +108,13 @@ export const SHAPES = [
     numericKey: KEYS["0"],
     fillable: false,
   },
+  // {
+  //   icon: EdgeConnectorIcon,
+  //   value: "edgeConnector",
+  //   key: KEYS.C,
+  //   numericKey: null,
+  //   fillable: false,
+  // },
 ] as const;
 
 export const getToolbarTools = (app: AppClassProperties) => {

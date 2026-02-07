@@ -18,24 +18,24 @@ import {
 import { isEmpty } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
+import {useCollaborateStore} from "@/stores/zustand/collaborate/collaborate-store";
+import {useShallow} from "zustand/react/shallow";
 
 interface CollaboratorsPopupProps {
-  collaborators: CollabAPI["collaborators"];
-  setCollaborators: CollabAPI["setCollaborators"];
   isCurrentOwner: boolean;
   trigger?: React.ReactNode;
   sendKickCollaboratorMessage: (id: SocketId) => void;
 }
 
 export function CollaboratorsPopup({
-  collaborators,
   trigger,
   isCurrentOwner,
-  setCollaborators,
   sendKickCollaboratorMessage,
 }: CollaboratorsPopupProps) {
   const t = useTranslations("share.collaborators_popup");
   const [open, setOpen] = useState(false);
+  const collaborators = useCollaborateStore(useShallow(s => s.collaborators));
+
 
   const {
     handleRemoveClick,
@@ -45,7 +45,7 @@ export function CollaboratorsPopup({
     removeDialogOpen,
     setRemoveDialogOpen,
     selectedCollaborator,
-  } = useCollaboratorsActions(collaborators, setCollaborators);
+  } = useCollaboratorsActions();
 
   const collaboratorsList = Array.from(collaborators.entries()).map(
     ([id, collab]) => ({

@@ -6,8 +6,6 @@ export const hasBackground = (type: ElementOrToolType) =>
   type === "embeddable" ||
   type === "ellipse" ||
   type === "diamond" ||
-  type === "line" ||
-  type === "freedraw" ||
   type === "triangle" ||
   type === "pentagon" ||
   type === "hexagon" ;

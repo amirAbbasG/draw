@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { Collaborator } from "@excalidraw/excalidraw/types";
 import { throttle } from "@/lib/utils";
 import {
@@ -6,6 +6,7 @@ import {
     IDLE_THRESHOLD,
     CURSOR_SYNC_TIMEOUT
 } from "@/components/features/share/constants";
+import {setCollaborators} from "@/stores/zustand/collaborate/actions";
 
 type SocketId = string & { _brand: "SocketId" };
 
@@ -15,7 +16,6 @@ export const useCollabAwareness = (
     userInfo: { username: string; avatarUrl?: string },
     roomInfoRef: React.RefObject<any>
 ) => {
-    const [collaborators, setCollaborators] = useState<Map<SocketId, Collaborator>>(new Map());
     const lastCollaboratorsKeysRef = useRef<string>("");
 
     const updateCollaborators = useCallback(() => {
@@ -127,5 +127,5 @@ export const useCollabAwareness = (
         };
     }, [providerRef.current, updateCollaborators]);
 
-    return { collaborators, onPointerUpdate, setCollaborators };
+    return { onPointerUpdate };
 };

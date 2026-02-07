@@ -1,19 +1,17 @@
 import { useEffect, useRef } from "react";
 
 import { resolvablePromise, ResolvablePromise } from "@excalidraw/common";
-import { restore } from "@excalidraw/excalidraw";
 import { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 
 import {
   importLibraryFromLocalStorage,
-  loadActivePageId,
-  loadPageData,
+  initializeScene,
 } from "@/components/features/draw/local-storage";
+import { HistoryItem } from "@/components/features/history/types";
 import { ROOM_KEY } from "@/components/features/share/constants";
 import { useCustomSearchParams } from "@/hooks/useCustomSearchParams";
 import { useLoadHistory } from "@/hooks/useLoadHistory";
 import { isEmpty } from "@/lib/utils";
-import {HistoryItem} from "@/components/features/history/types";
 
 export const useLoadData = (
   drawAPI: DrawAPI,
@@ -27,7 +25,6 @@ export const useLoadData = (
     initialStatePromiseRef.current.promise =
       resolvablePromise<ExcalidrawInitialDataState | null>();
   }
-
 
   const { currentValue: room } = useCustomSearchParams(ROOM_KEY);
 
@@ -46,37 +43,6 @@ export const useLoadData = (
       initialStatePromiseRef.current.promise.resolve({});
     }
   }, [activeHistory, drawAPI]);
-
-  const initializeScene = async () => {
-    // Load from current page in pagination storage
-    const activePageId = loadActivePageId();
-
-    if (activePageId) {
-      const pageData = loadPageData(activePageId);
-
-      if (pageData) {
-        return restore(
-          {
-            elements: pageData.elements,
-            appState: pageData.appState,
-            files: pageData.files,
-          },
-          null,
-          null,
-          {
-            repairBindings: true,
-            deleteInvisibleElements: true,
-          },
-        );
-      }
-    }
-
-    // If no pagination data, return empty scene
-    return restore(null, null, null, {
-      repairBindings: true,
-      deleteInvisibleElements: true,
-    });
-  };
 
   useEffect(() => {
     if (room) {

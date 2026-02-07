@@ -236,7 +236,7 @@ export const getElementsCorners = (
         element.angle,
       );
       const topMid = pointRotateRads<GlobalPoint>(
-        pointFrom(x1 + halfWidth, y1),
+        pointFrom(x1 + halfWidth, y1 ),
         pointFrom(cx, cy),
         element.angle,
       );

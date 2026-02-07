@@ -51,13 +51,27 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
   theme,
   drawAPI,
   collabAPI,
-    isOpenShare,
-    setIsOpenShare
+  isOpenShare,
+  setIsOpenShare,
 }) => {
   const { selectionBounds, handleChange, elements } = useTrackSelection();
   const [collapseFooter, setCollapseFooter] = useState(true);
   const [collapseTop, setCollapseTop] = useState(true);
   const isFullScreen = useUiStore(useShallow(s => s.isFullScreenDraw));
+
+  const {
+    startCollaboration,
+      sendKickMessage,
+        isCollaborating,
+        isCollabViewMode,
+        collabErrorMessage,
+        isOffline,
+        isOwner,
+      shouldJoinFromParam,
+      paramRoom,
+        setUsername,
+      username
+  } = collabAPI
 
   const paginationAPI = usePaginationActions({
     drawAPI,
@@ -96,11 +110,11 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
       onChange(elements, appState, files);
 
       // Only save locally if not collaborating
-      if (!collabAPI.isCollaborating) {
+      if (!isCollaborating) {
         localSave(elements, appState, files);
       }
     },
-    [handleChange, onChange, collabAPI.isCollaborating, localSave],
+    [handleChange, onChange, isCollaborating, localSave],
   );
 
   const closeShare = () => {
@@ -108,14 +122,15 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
     setShareLink("");
   };
 
-  const hidePagination = collabAPI.isCollaborating && !collabAPI.isOwner;
+  const hidePagination = isCollaborating && !isOwner;
+
 
   return (
     <>
       <Excalidraw
         onLibraryChange={setLocalstorageLibraryData}
-        viewModeEnabled={collabAPI.isCollabViewMode}
-        isCollaborating={collabAPI.isCollaborating}
+        viewModeEnabled={isCollabViewMode}
+        isCollaborating={isCollaborating}
         initialData={initialStatePromiseRef.current.promise}
         onChange={onChangeCallback}
         excalidrawAPI={excalidrawAPI}
@@ -150,12 +165,17 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
         langCode={langCode}
         renderTopRightUI={() => (
           <TopTools
-            collabAPI={collabAPI}
             drawAPI={drawAPI}
             isExporting={isExporting}
             openShare={() => setIsOpenShare(true)}
             collapseTop={collapseTop}
             setCollapseTop={setCollapseTop}
+            isCollaborating={isCollaborating}
+            isCollabViewMode={isCollabViewMode}
+            collabErrorMessage={collabErrorMessage}
+            isOwner={isOwner}
+            isOffline={isOffline}
+            sendKickMessage={sendKickMessage}
           />
         )}
       >
@@ -163,7 +183,7 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
         <AppMainMenu
           drawAPI={drawAPI}
           elements={elements}
-          disableTools={collabAPI.isCollabViewMode}
+          disableTools={isCollabViewMode}
         />
         <DrawFooter
           paginationAPI={paginationAPI}
@@ -178,11 +198,16 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
       <Share
         clearLink={() => setShareLink("")}
         onExportToBackend={exportLink}
-        collabAPI={collabAPI}
         onClose={closeShare}
         isOpen={isOpenShare}
         link={shareLink}
         isPendingExport={isOpenShare && isExporting}
+        isCollaborating={isCollaborating}
+        startCollaboration={startCollaboration}
+        username={username}
+        setUsername={setUsername}
+        paramRoom={paramRoom}
+        shouldJoinFromParam={shouldJoinFromParam}
       />
     </>
   );

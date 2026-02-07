@@ -34,7 +34,7 @@ const buttonVariants = cva(
      disabled:text-foreground-disable
      selected:bg-muted-light selected:text-[var(--color)]`,
         ghost:
-          "hover:bg-muted-dark active:bg-[var(--light)] selected:bg-[var(--lighter)] dark:selected:bg-[var(--dark)] dark:active:bg-[var(--dark)]",
+          "hover:bg-muted-dark active:bg-[var(--light)] selected:bg-[var(--lighter)] dark:selected:bg-[var(--lighter)] dark:active:bg-[var(--lighter)]",
         gradiant:
           "bg-gradient-to-br from-primary to-secondary text-white hover:to-primary transition-all duration-500",
         input: `bg-[var(--light)] border border-[var(--dark)] text-[var(--darker)] hover:bg-[var(--dark)] hover:border-[var(--darker)]

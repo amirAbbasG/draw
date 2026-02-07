@@ -294,6 +294,7 @@
   },
   "toolBar": {
     "shapes": "Shapes",
+    "edgeConnector": "Edge Connector",
     "selection": "Selection",
     "lasso": "Lasso selection",
     "image": "Insert image",

@@ -91,7 +91,7 @@ const CallDrawer: FC<CallDrawerProps> = ({
     >
       <CallDrawerContent
         sessionId={sessionId}
-        className="flex-1 overflow-hidden"
+        className="flex-1 overflow-x-hidden"
         streamSessionAPI={streamSessionAPI}
         liveKitAPI={liveKitAPI}
         statusMessage={statusMessage}

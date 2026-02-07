@@ -25,35 +25,34 @@ interface IProps {
   onClose: () => void;
   isOpen: boolean;
   link: string;
-  collabAPI: CollabAPI;
   onExportToBackend: () => void;
   clearLink: () => void;
   isPendingExport: boolean;
+  isCollaborating: boolean;
+  startCollaboration: CollabAPI["startCollaboration"];
+  username: string;
+  setUsername: CollabAPI["setUsername"];
+  paramRoom: string | null;
+  shouldJoinFromParam: boolean;
 }
 
 const ShareDialog: FC<PropsWithChildren<IProps>> = ({
   onClose,
   link,
   isOpen,
-  collabAPI,
   onExportToBackend,
   clearLink,
   isPendingExport,
+  isCollaborating,
+  paramRoom,
+  setUsername,
+  shouldJoinFromParam,
+  startCollaboration,
+  username,
 }) => {
   const [showCollaboration, setShowCollaboration] = useState(false);
   const stopSessionRef = useRef<(() => void) | null>(null);
   const { removeParam } = useCustomSearchParams();
-
-  const {
-    isCollaborating,
-    startCollaboration,
-    username,
-    setUsername,
-    roomId,
-    paramRoom,
-    shouldJoinFromParam,
-    collaborators,
-  } = collabAPI;
 
   useEffect(() => {
     if (shouldJoinFromParam && !isCollaborating) {
@@ -109,12 +108,7 @@ const ShareDialog: FC<PropsWithChildren<IProps>> = ({
           </Show.When>
 
           <Show.Else>
-            <ActiveSession
-              collaborators={collaborators}
-              roomId={roomId!}
-              stopSession={onStopSession}
-              userName={username}
-            />
+            <ActiveSession stopSession={onStopSession} userName={username} />
           </Show.Else>
         </Show>
       </DialogContent>
