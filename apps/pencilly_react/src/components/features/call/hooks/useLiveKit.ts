@@ -4,7 +4,7 @@ import type {
   LocalTrack,
   Participant,
   RemoteTrack,
-    ConnectionState
+  ConnectionState
 } from "@/components/features/call/types";
 import { useTranslations } from "@/i18n";
 
@@ -17,7 +17,7 @@ interface UseLiveKitOptions {
 export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const t = useTranslations("call.status");
   const [connectionState, setConnectionState] =
-    useState<ConnectionState>("idle");
+      useState<ConnectionState>("idle");
   const [localTracks, setLocalTracks] = useState<LocalTrack[]>([]);
   const [remoteTracks, setRemoteTracks] = useState<RemoteTrack[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -32,12 +32,14 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const livekitRef = useRef<any>(null);
   const screenTrackRef = useRef<any>(null);
   const localTracksRef = useRef<any[]>([]);
+  // Map of track SID → HTMLAudioElement for remote audio playback
+  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const status = useCallback(
-    (msg: string) => {
-      onStatusChange?.(msg);
-    },
-    [onStatusChange],
+      (msg: string) => {
+        onStatusChange?.(msg);
+      },
+      [onStatusChange],
   );
 
   const loadLiveKit = useCallback(async () => {
@@ -45,7 +47,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
 
     const script = document.createElement("script");
     script.src =
-      "https://unpkg.com/livekit-client@2.16.1/dist/livekit-client.umd.js";
+        "https://unpkg.com/livekit-client@2.16.1/dist/livekit-client.umd.js";
     script.async = true;
 
     await new Promise<void>((resolve, reject) => {
@@ -55,10 +57,10 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     });
 
     const livekit =
-      (window as any).LivekitClient ||
-      (window as any).LiveKit ||
-      (window as any).LiveKitClient ||
-      (window as any).livekit;
+        (window as any).LivekitClient ||
+        (window as any).LiveKit ||
+        (window as any).LiveKitClient ||
+        (window as any).livekit;
 
     if (!livekit) {
       throw new Error(t("missing_global"));
@@ -114,6 +116,24 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
                       pub?.name?.toLowerCase()?.includes("screen") ||
                       track?.name?.toLowerCase()?.includes("screen");
 
+                  const mediaStreamTrack = track.mediaStreamTrack || track.track;
+
+                  // Attach remote audio tracks to hidden <audio> elements for playback
+                  if (track.kind === "audio" && mediaStreamTrack) {
+                    const audioEl = document.createElement("audio");
+                    audioEl.autoplay = true;
+                    //@ts-ignore
+                    audioEl.playsInline = true;
+                    audioEl.srcObject = new MediaStream([mediaStreamTrack]);
+                    // Hidden but must be in the DOM for some browsers to play
+                    audioEl.style.display = "none";
+                    document.body.appendChild(audioEl);
+                    audioEl.play().catch(() => {
+                      /* autoplay may be blocked by browser policy */
+                    });
+                    audioElementsRef.current.set(track.sid, audioEl);
+                  }
+
                   setRemoteTracks(prev => [
                     ...prev,
                     {
@@ -121,7 +141,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
                       participantIdentity: participant.identity,
                       participantName: participant.name,
                       participantProfileImage: getProfileImageFromMetadata(participant),
-                      track: track.mediaStreamTrack || track.track,
+                      track: mediaStreamTrack,
                       sid: track.sid,
                       source: isScreenShare ? "screen" : "camera",
                       isMuted: pub?.isMuted || false,
@@ -132,11 +152,24 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
           );
 
           room.on(livekit.RoomEvent.TrackUnsubscribed, (track: any) => {
+            // Clean up any attached audio element
+            const audioEl = audioElementsRef.current.get(track.sid);
+            if (audioEl) {
+              audioEl.pause();
+              audioEl.srcObject = null;
+              audioEl.remove();
+              audioElementsRef.current.delete(track.sid);
+            }
             setRemoteTracks(prev => prev.filter(t => t.sid !== track.sid));
           });
 
           // Track muted/unmuted events
           room.on(livekit.RoomEvent.TrackMuted, (pub: any, _participant: any) => {
+            // Mute the hidden audio element if it exists
+            const mutedAudioEl = audioElementsRef.current.get(pub.trackSid);
+            if (mutedAudioEl) {
+              mutedAudioEl.muted = true;
+            }
             setRemoteTracks(prev =>
                 prev.map(t =>
                     t.sid === pub.trackSid
@@ -147,6 +180,11 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
           });
 
           room.on(livekit.RoomEvent.TrackUnmuted, (pub: any, _participant: any) => {
+            // Unmute the hidden audio element if it exists
+            const unmutedAudioEl = audioElementsRef.current.get(pub.trackSid);
+            if (unmutedAudioEl) {
+              unmutedAudioEl.muted = false;
+            }
             setRemoteTracks(prev =>
                 prev.map(t =>
                     t.sid === pub.trackSid
@@ -252,6 +290,14 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     }
     localTracksRef.current = []
 
+    // Clean up all remote audio elements
+    audioElementsRef.current.forEach((audioEl) => {
+      audioEl.pause();
+      audioEl.srcObject = null;
+      audioEl.remove();
+    });
+    audioElementsRef.current.clear();
+
     if (roomRef.current) {
       try {
         roomRef.current.disconnect()
@@ -341,6 +387,11 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
 
   const startScreenShare = useCallback(async () => {
     if (!roomRef.current || !livekitRef.current) return;
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      status("Screen sharing is not supported on this device");
+      return;
+    }
 
     if (isAnyoneSharing) {
       status("Someone else is already sharing their screen")

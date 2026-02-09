@@ -45,14 +45,14 @@ export function useAxiosFetcher(abortOnClose: boolean = false) {
   const queryClient = useQueryClient();
 
 
-  // axiosClient.interceptors.response.use(res => res,
-  //     (error) => {
-  //       if (error?.response?.status === 401) {
-  //         localStorage.removeItem(USER_KEY);
-  //         queryClient.setQueryData(queryKeys.getMe, null);
-  //       }
-  //       return Promise.reject(error);
-  //     })
+  axiosClient.interceptors.response.use(res => res,
+      (error) => {
+        if (error?.response?.status === 401) {
+          localStorage.removeItem(USER_KEY);
+          queryClient.setQueryData(queryKeys.getMe, null);
+        }
+        return Promise.reject(error);
+      })
 
   async function axiosFetch<T>(configObj: ConfigObjType, data?: any) {
     const {

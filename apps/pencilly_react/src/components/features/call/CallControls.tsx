@@ -1,3 +1,4 @@
+import { isScreenCaptureSupported } from "@/components/features/screen-recorder/utils";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
@@ -29,9 +30,9 @@ export function CallControls({
   className,
 }: CallControlsProps) {
   const t = useTranslations("call");
+  const screenSupported = isScreenCaptureSupported();
   const screenShareDisabled =
     !isConnected || (isAnyoneSharing && !isScreenSharing);
-
 
   return (
     <div className={cn("centered-row gap-2 rounded bg-muted p-2", className)}>
@@ -52,28 +53,30 @@ export function CallControls({
         disabled={!isConnected}
       />
 
-      <AppIconButton
-        title={
-          isAnyoneSharing && !isScreenSharing
-            ? t("status.someone_sharing")
-            : isScreenSharing
-              ? t("stop_sharing")
-              : t("share_screen")
-        }
-        icon={
-          isScreenSharing
-            ? sharedIcons.screen_share_off
-            : sharedIcons.screen_share
-        }
-        className={cn(
-          screenShareDisabled &&
-            !isScreenSharing &&
-            "opacity-50 cursor-not-allowed",
-        )}
-        color={isScreenSharing ? "success" : "default"}
-        onClick={onToggleScreenShare}
-        disabled={!isConnected}
-      />
+      {screenSupported && (
+        <AppIconButton
+          title={
+            isAnyoneSharing && !isScreenSharing
+              ? t("status.someone_sharing")
+              : isScreenSharing
+                ? t("stop_sharing")
+                : t("share_screen")
+          }
+          icon={
+            isScreenSharing
+              ? sharedIcons.screen_share_off
+              : sharedIcons.screen_share
+          }
+          className={cn(
+            screenShareDisabled &&
+              !isScreenSharing &&
+              "opacity-50 cursor-not-allowed",
+          )}
+          color={isScreenSharing ? "success" : "default"}
+          onClick={onToggleScreenShare}
+          disabled={!isConnected}
+        />
+      )}
 
       <AppIconButton
         title={t("leave_call")}

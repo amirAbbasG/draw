@@ -3,6 +3,7 @@ import React from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import AuthDialog from "@/components/features/auth";
+import IncomingCallPopup from "@/components/features/call/IncomingCallPopup";
 // import CookieConsentApp from "@/components/providers/ConsentCookies/CookiesConsent";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 import ToastProvider from "@/components/providers/ToastProvider";
@@ -13,23 +14,24 @@ import { useUiStore } from "@/stores/zustand/ui/ui-store";
 import {UpgradeDialog} from "@/components/layout/UpgradeDialog";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [isAuthPopupOpen, isUpgradePopupOpen] = useUiStore(
-    useShallow(state => [state.isAuthPopupOpen, state.isUpgradePopupOpen]),
-  );
+    const [isAuthPopupOpen, isUpgradePopupOpen] = useUiStore(
+        useShallow(state => [state.isAuthPopupOpen, state.isUpgradePopupOpen]),
+    );
 
-  return (
-    <ThemeProvider>
-      {/* thi is for query client */}
-      <ReactQueryProvider>
-        {/*<CookieConsentApp />*/}
-        <UserProvider>
-          {children}
-          <AuthDialog isOpen={isAuthPopupOpen} setIsOpen={setIsAuthPopupOpen} />
-          <UpgradeDialog isOpen={isUpgradePopupOpen} setIsOpen={setIsUpgradePopupOpen} />
-        </UserProvider>
-      </ReactQueryProvider>
-      {/* thi is for toast */}
-      <ToastProvider />
-    </ThemeProvider>
-  );
+    return (
+        <ThemeProvider>
+            {/* thi is for query client */}
+            <ReactQueryProvider>
+                {/*<CookieConsentApp />*/}
+                <UserProvider>
+                    {children}
+                    <AuthDialog isOpen={isAuthPopupOpen} setIsOpen={setIsAuthPopupOpen} />
+                    <UpgradeDialog isOpen={isUpgradePopupOpen} setIsOpen={setIsUpgradePopupOpen} />
+                    <IncomingCallPopup />
+                </UserProvider>
+            </ReactQueryProvider>
+            {/* thi is for toast */}
+            <ToastProvider />
+        </ThemeProvider>
+    );
 }

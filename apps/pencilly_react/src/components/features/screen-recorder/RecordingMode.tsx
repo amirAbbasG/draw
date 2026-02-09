@@ -1,6 +1,7 @@
 import React, { type FC } from "react";
 
 import type { RecordingMode } from "@/components/features/screen-recorder/useMediaRecorder";
+import { isScreenCaptureSupported } from "@/components/features/screen-recorder/utils";
 import { Button } from "@/components/ui/button";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { sharedIcons } from "@/constants/icons";
@@ -28,6 +29,11 @@ const RecordingMode: FC<IProps> = ({
   setRecordingMode,
 }) => {
   const t = useTranslations("screen_recorder");
+  const screenSupported = isScreenCaptureSupported();
+
+  const availableItems = screenSupported
+    ? items
+    : items.filter(({ mode }) => mode === "camera");
 
   return (
     <div className="p-3.5 border-b border-border">
@@ -35,7 +41,7 @@ const RecordingMode: FC<IProps> = ({
         {t("recording_mode")}
       </AppTypo>
       <div className="flex gap-2">
-        {items.map(({ mode, icon, label }) => (
+        {availableItems.map(({ mode, icon, label }) => (
           <Button
             key={mode}
             variant="outline"

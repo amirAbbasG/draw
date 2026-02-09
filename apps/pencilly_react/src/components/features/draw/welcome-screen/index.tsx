@@ -55,7 +55,7 @@ const AppWelcomeScreen: React.FC<{
             <WelcomeScreen.Center.MenuItem
               onSelect={() => setIsAuthPopupOpen(true)}
               shortcut={null}
-              icon={<AppIcon icon={sharedIcons.logout} className="h-full w-full p-[1px]" />}
+              icon={<AppIcon icon={sharedIcons.logout} className="h-full w-full p-0.5" />}
               description="Access your saved drawings"
             >
               {t("defaults.login")}

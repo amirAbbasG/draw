@@ -1,5 +1,6 @@
 import React, { useEffect, useState, type FC } from "react";
 
+
 import type { StreamSession } from "@/components/features/call/types";
 import { OrDivider } from "@/components/shared/OrDivider";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,6 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@/stores/context/user";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
-import {useCollaborateStore} from "@/stores/zustand/collaborate/collaborate-store";
-import {useShallow} from "zustand/react/shallow";
-import {useCallCollaborators} from "@/components/features/call/hooks/useCallCollaborators";
-import AppIconButton from "@/components/ui/custom/app-icon-button";
 
 interface CallBoxProps {
   icon: string;
@@ -124,21 +121,34 @@ const StartCall: FC<IProps> = ({
 
   const isLoading = pendingCreate || pendingJoin;
 
-  const collaborators = useCollaborateStore(useShallow(state => state.collaborators));
-  const {callCollaborators, isCalling}  = useCallCollaborators()
+  // const collaborators = useCollaborateStore(
+  //   useShallow(state => state.collaborators),
+  // );
+  // const { callCollaborators, isCalling } = useCallCollaborators();
 
-  const onCall = async (userId: number) => {
-    const user_ids = userId ? [userId] : Array.from(collaborators.values()).filter(c => c.roomInfo?.userId).map(c => c.roomInfo!.userId!)
-    setPendingCreate(true);
-    const session = await handleStartCall();
-    if (session) {
-      await handleJoin(displayName, session);
-      void callCollaborators({
-        destination_id: session.id,
-        user_ids,
-      })
-    }
-  }
+  // const onCall = async (userId: number) => {
+  //   const user_ids = userId
+  //     ? [userId]
+  //     : Array.from(collaborators.values())
+  //         .filter(c => c.roomInfo?.userId)
+  //         .map(c => c.roomInfo!.userId!);
+  //   setPendingCreate(true);
+  //   if (!existingSession) {
+  //     const session = await handleStartCall();
+  //     if (session) {
+  //       await handleJoin(displayName, session);
+  //     }
+  //     void callCollaborators({
+  //       destination_id: session.id,
+  //       user_ids,
+  //     });
+  //   } else {
+  //     await callCollaborators({
+  //       destination_id: existingSession.id,
+  //       user_ids,
+  //     });
+  //   }
+  // };
 
   return (
     <div className="col gap-4 p-4">
@@ -154,16 +164,22 @@ const StartCall: FC<IProps> = ({
         />
       </div>
 
-      {
-        collaborators.size > 0 && (
-            Array.from(collaborators.values()).filter(c => !c.isCurrentUser).map(collaborator => (
-                <div key={collaborator.username} className="row gap-2 p-2 rounded border">
-                    <AppTypo className="flex-1">{collaborator.username}</AppTypo>
-                  <AppIconButton icon="hugeicons:call-add" disabled={!collaborator.roomInfo?.userId} onClick={() => onCall(collaborator.roomInfo.userId!)}/>
-                </div>
-            ))
-          )
-      }
+      {/*{collaborators.size > 0 &&*/}
+      {/*  Array.from(collaborators.values())*/}
+      {/*    .filter(c => !c.isCurrentUser)*/}
+      {/*    .map(collaborator => (*/}
+      {/*      <div*/}
+      {/*        key={collaborator.username}*/}
+      {/*        className="row gap-2 p-2 rounded border"*/}
+      {/*      >*/}
+      {/*        <AppTypo className="flex-1">{collaborator.username}</AppTypo>*/}
+      {/*        <AppIconButton*/}
+      {/*          icon="hugeicons:call-add"*/}
+      {/*          disabled={!collaborator.roomInfo?.userId}*/}
+      {/*          onClick={() => onCall(collaborator.roomInfo.userId!)}*/}
+      {/*        />*/}
+      {/*      </div>*/}
+      {/*    ))}*/}
 
       {existingSession && !isLoading && !isLeaving && !isPendingUrlRoom && (
         <CallBox

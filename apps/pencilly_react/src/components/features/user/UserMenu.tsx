@@ -19,6 +19,7 @@ import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 import { useLogout } from "@/services/user";
 import {Skeleton} from "@/components/ui/skeleton";
+import DynamicButton from "@/components/shared/DynamicButton";
 
 const routes = ["pricing", "settings"] as const;
 
@@ -35,9 +36,8 @@ function UserMenu() {
 
   if (!user) {
     return (
-      <Button variant="gradiant" onClick={() => setIsAuthPopupOpen(true)}>
-        {t("login")}
-      </Button>
+      <DynamicButton icon="hugeicons:login-square-02" title={t("login")} variant="gradiant" onClick={() => setIsAuthPopupOpen(true)}/>
+
     );
   }
 

@@ -537,7 +537,8 @@ body.excalidraw-cursor-resize * {
     font-family: inherit;
 
     @include vars.isMobile {
-      padding: 8px 12px
+      padding: 8px 12px;
+      font-size: 0.75rem;
     }
     &:hover {
       background-color: var(--button-hover-bg);

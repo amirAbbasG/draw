@@ -4,6 +4,7 @@ import { useReactMediaRecorder } from "react-media-recorder";
 
 import {
   getVideoConstraints,
+  isScreenCaptureSupported,
   type VideoQuality,
 } from "@/components/features/screen-recorder/utils";
 
@@ -17,7 +18,10 @@ export interface Recording {
 }
 
 export const useMediaRecorder = () => {
-  const [recordingMode, setRecordingMode] = useState<RecordingMode>("screen");
+  const screenSupported = isScreenCaptureSupported();
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>(
+      screenSupported ? "screen" : "camera",
+  );
   const [includeAudio, setIncludeAudio] = useState(true);
   const [includeSystemAudio, setIncludeSystemAudio] = useState(true);
   const [showCamera, setShowCamera] = useState(false);
@@ -58,20 +62,22 @@ export const useMediaRecorder = () => {
     clearBlobUrl,
     previewStream,
   } = useReactMediaRecorder({
-    screen: recordingMode === "screen" || recordingMode === "screen+camera",
+    screen:
+        screenSupported &&
+        (recordingMode === "screen" || recordingMode === "screen+camera"),
     video:
-      recordingMode === "camera" ? getVideoConstraints(videoQuality) : false,
+        recordingMode === "camera" ? getVideoConstraints(videoQuality) : false,
     audio: includeAudio,
     onStop: blobUrl => {
       if (recordingMode === "screen+camera") {
         stopCameraPlusScreenRecording();
       }else {
-      const newRecording = {
-        url: blobUrl,
-        name: `Recording_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}`,
-        date: new Date(),
-      };
-      setRecordings(prev => [newRecording, ...prev]);
+        const newRecording = {
+          url: blobUrl,
+          name: `Recording_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}`,
+          date: new Date(),
+        };
+        setRecordings(prev => [newRecording, ...prev]);
       }
     },
     onStart: () => {

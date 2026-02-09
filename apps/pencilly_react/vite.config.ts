@@ -26,9 +26,13 @@ export default defineConfig({
     watch: {
       // Watch the package source files
       ignored: ["!**/node_modules/@excalidraw/**"],
+      usePolling: true,
     },
     strictPort: true,
     host: true,
     port: Number(process.env.VITE_PORT || "3000") || 3000,
+    fs: {
+      strict: false, // allow serving files outside project root if needed
+    },
   },
 });

@@ -769,6 +769,10 @@
     "rejoin_call": "Rejoin Call",
     "rejoin_call_desc": "You have an active session.",
     "full_screen": "Fullscreen",
-    "exit_full_screen": "Exit Fullscreen"
+    "exit_full_screen": "Exit Fullscreen",
+    "incoming_call": "Incoming Call",
+    "calling_you": "is calling you",
+    "accept": "Accept",
+    "deny": "Deny"
   }
 }

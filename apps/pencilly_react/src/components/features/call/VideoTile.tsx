@@ -90,7 +90,7 @@ export function VideoTile({
       {showBadge && (
         <div
           className={cn(
-            "absolute bottom-1.5 start-1.5 row gap-1 px-1.5 py-0.5",
+            "absolute bottom-1.5 start-1.5 row gap-1 px-1.5 py-0.5 max-w-[90%]",
             !isStopped ? " rounded-md bg-background/80  backdrop-blur-sm" : "",
           )}
         >
@@ -106,7 +106,7 @@ export function VideoTile({
               className="size-3 text-danger [&_g]:stroke-[1] [&_path]:stroke-[1]"
             />
           )}
-          <AppTypo variant="xs" className="first-letter:capitalize">
+          <AppTypo variant="xs" className="first-letter:capitalize truncate max-w-full ">
             {isScreenShare ? t("status.screen_share") : name || t("unknown")}
           </AppTypo>
         </div>

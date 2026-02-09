@@ -8,7 +8,6 @@ interface IProps extends Omit<ButtonProps, "title"> {
   icon: string;
   title: string;
   hideLabel?: boolean;
-  variant?: "default" | "outline" | "secondary" | "ghost";
   responsiveLabel?: boolean;
   labelClassName?: string;
 }
