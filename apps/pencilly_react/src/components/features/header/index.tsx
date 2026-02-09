@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import CallDrawer from "@/components/features/call";
 import FileMenu from "@/components/features/header/file-menu";
+import MeetDrawer from "@/components/features/meet/MeetDrawer";
 import HeaderTabs from "@/components/features/header/HeaderTabs";
 import AppHistory from "@/components/features/history";
 import ScreenRecorder from "@/components/features/screen-recorder";
@@ -54,6 +55,7 @@ const Header: FC<IProps> = ({ drawAPI, activeTab }) => {
         </RenderIf>
         {/*<ThemeSelect />*/}
         <ScreenRecorder />
+        <MeetDrawer />
         <CallDrawer />
         <AppHistory />
         <UserMenu />
