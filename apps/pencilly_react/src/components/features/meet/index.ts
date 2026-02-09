@@ -10,4 +10,6 @@ export { default as MessageBubble } from "./MessageBubble";
 export { default as DateSeparator } from "./DateSeparator";
 export { default as TypingIndicator } from "./TypingIndicator";
 export { default as MentionPopup } from "./MentionPopup";
+export { CallNotificationToast, MessageNotificationToast } from "./notification";
+export type { CallNotificationData, MessageNotificationData } from "./notification";
 export type { Conversation, MeetUser, ChatMessage, ChatView as ChatViewType, MessageStatus } from "./types";

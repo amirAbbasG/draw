@@ -774,5 +774,40 @@
     "calling_you": "is calling you",
     "accept": "Accept",
     "deny": "Deny"
+  },
+  "meet": {
+    "chat": {
+      "group_name_placeholder": "Group name...",
+      "edit_group_name": "Edit group name",
+      "voice_call": "Voice Call",
+      "video_call": "Video Call",
+      "info": "Info",
+      "back": "Back",
+      "typing": "Typing",
+      "is_typing": "is typing",
+      "are_typing": "are typing",
+      "no_messages": "No messages yet. Start the conversation!",
+      "send_message": "Send Message",
+      "mention_user": "Mention User",
+      "ai_assistant": "AI Assistant",
+      "mention_ai": "Mention AI for help",
+      "no_match": "No matches found."
+    },
+    "notification": {
+      "is_calling_you": "Is Calling You ...",
+      "accept_call": "Accept Call",
+      "decline_call": "Decline Call",
+      "close": "Close",
+      "new_message": "New Message",
+      "incoming_call": "Incoming Call",
+      "missed_call": "Missed Call",
+      "call_ended": "Call Ended"
+    },
+    "conversation": {
+      "no_messages_yet": "No Messages Yet.",
+      "unknown": "Unknown",
+      "online": "Online",
+      "offline": "Offline"
+    }
   }
 }
