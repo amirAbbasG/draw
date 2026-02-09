@@ -12,6 +12,7 @@ interface MentionPopupProps {
   members: MeetUser[];
   filter?: string;
   onSelect: (mention: string) => void;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -47,7 +48,7 @@ const MentionPopup: FC<MentionPopupProps> = ({
           className="flex items-center gap-2.5 px-3 py-2 hover:bg-primary-lighter transition-colors text-start"
           onMouseDown={e => {
             e.preventDefault();
-            onSelect("@ai ");
+            onSelect("ai");
           }}
         >
           <div className="size-7 rounded-full bg-primary-lighter flex items-center justify-center shrink-0">
@@ -75,7 +76,7 @@ const MentionPopup: FC<MentionPopupProps> = ({
           className="flex items-center gap-2.5 px-3 py-2 hover:bg-primary-lighter transition-colors text-start"
           onMouseDown={e => {
             e.preventDefault();
-            onSelect(`@${member.name.replace(/\s+/g, "")} `);
+            onSelect(member.name.replace(/\s+/g, ""));
           }}
         >
           <UserAvatar
