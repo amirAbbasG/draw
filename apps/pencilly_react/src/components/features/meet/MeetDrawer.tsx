@@ -4,8 +4,9 @@ import AppDrawer from "@/components/shared/AppDrawer";
 import DynamicButton from "@/components/shared/DynamicButton";
 import { sharedIcons } from "@/constants/icons";
 
+import ChatView from "./ChatView";
 import MeetDrawerContent from "./MeetDrawerContent";
-import type { Conversation } from "./types";
+import type { ChatMessage, Conversation } from "./types";
 
 /** Example demo data to showcase ConversationCard and ConversationList usage. */
 const DEMO_CONVERSATIONS: Conversation[] = [
@@ -74,6 +75,37 @@ const DEMO_CONVERSATIONS: Conversation[] = [
   },
 ];
 
+/** Demo chat messages to showcase the ChatView component */
+const DEMO_MESSAGES: ChatMessage[] = [
+  {
+    id: "m1",
+    text: "Did You Finish Checking The Document?",
+    senderId: "current",
+    senderName: "You",
+    timestamp: "Yesterday",
+    status: "read",
+    isCurrentUser: true,
+  },
+  {
+    id: "m2",
+    text: "I Will Review The Full Document Tonight And Send You A Clear Summary With All Required Changes Today",
+    senderId: "u1",
+    senderName: "Ahmad Reza",
+    senderAvatarUrl: "",
+    timestamp: "12.00",
+    isCurrentUser: false,
+  },
+  {
+    id: "m3",
+    text: "Hey @ai can you summarize the doc for us?",
+    senderId: "current",
+    senderName: "You",
+    timestamp: "12.05",
+    status: "delivered",
+    isCurrentUser: true,
+  },
+];
+
 interface MeetDrawerProps {
   Trigger?: React.ReactNode;
   open?: boolean;
@@ -86,6 +118,9 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
   onOpenChange,
 }) => {
   const [internalOpen, setInternalOpen] = useState(false);
+  const [activeConversation, setActiveConversation] =
+    useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>(DEMO_MESSAGES);
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = onOpenChange ?? setInternalOpen;
@@ -96,6 +131,36 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
 
   const handleStartNewCall = () => {
     // Placeholder - integrate with actual call creation flow
+  };
+
+  const handleOpenChat = (conversation: Conversation) => {
+    setActiveConversation(conversation);
+  };
+
+  const handleBackToList = () => {
+    setActiveConversation(null);
+  };
+
+  const handleSendMessage = (text: string) => {
+    const newMsg: ChatMessage = {
+      id: `m${Date.now()}`,
+      text,
+      senderId: "current",
+      senderName: "You",
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: "sent",
+      isCurrentUser: true,
+    };
+    setMessages(prev => [...prev, newMsg]);
+  };
+
+  const handleTitleEdit = (newTitle: string) => {
+    if (activeConversation) {
+      setActiveConversation({ ...activeConversation, title: newTitle });
+    }
   };
 
   const defaultTrigger = (
@@ -117,13 +182,28 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       contentClassName="overflow-x-hidden"
       modal={false}
     >
-      <MeetDrawerContent
-        conversations={DEMO_CONVERSATIONS}
-        connectionState="connected"
-        onCall={handleCall}
-        onStartNewCall={handleStartNewCall}
-        className="flex-1 overflow-x-hidden"
-      />
+      {activeConversation ? (
+        <ChatView
+          conversation={activeConversation}
+          messages={messages}
+          typingUsers={["Ahmad Reza"]}
+          onBack={handleBackToList}
+          onSendMessage={handleSendMessage}
+          onCall={() => handleCall(activeConversation)}
+          onVideoCall={() => {}}
+          onTitleEdit={handleTitleEdit}
+          className="flex-1 overflow-hidden"
+        />
+      ) : (
+        <MeetDrawerContent
+          conversations={DEMO_CONVERSATIONS}
+          connectionState="connected"
+          onCall={handleCall}
+          onOpenChat={handleOpenChat}
+          onStartNewCall={handleStartNewCall}
+          className="flex-1 overflow-x-hidden"
+        />
+      )}
     </AppDrawer>
   );
 };

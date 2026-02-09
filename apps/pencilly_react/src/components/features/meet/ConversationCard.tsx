@@ -15,12 +15,14 @@ const MAX_DISPLAY_MEMBERS = 3;
 interface ConversationCardProps {
   conversation: Conversation;
   onCall?: (conversation: Conversation) => void;
+  onClick?: () => void;
   className?: string;
 }
 
 const ConversationCard: FC<ConversationCardProps> = ({
   conversation,
   onCall,
+  onClick,
   className,
 }) => {
   const { isGroup, title, avatarUrl, members, lastMessage, unseenCount, isOnline } =
@@ -51,6 +53,10 @@ const ConversationCard: FC<ConversationCardProps> = ({
         "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-background cursor-pointer",
         className,
       )}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === "Enter") onClick?.(); }}
     >
       {/* Avatar */}
       <ConversationAvatar

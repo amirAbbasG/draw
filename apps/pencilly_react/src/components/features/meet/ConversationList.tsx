@@ -9,6 +9,7 @@ import type { Conversation } from "./types";
 interface ConversationListProps {
   conversations: Conversation[];
   onCall?: (conversation: Conversation) => void;
+  onOpenChat?: (conversation: Conversation) => void;
   emptyMessage?: string;
   className?: string;
 }
@@ -16,6 +17,7 @@ interface ConversationListProps {
 const ConversationList: FC<ConversationListProps> = ({
   conversations,
   onCall,
+  onOpenChat,
   emptyMessage = "No conversations yet.",
   className,
 }) => {
@@ -36,6 +38,7 @@ const ConversationList: FC<ConversationListProps> = ({
           key={conversation.id}
           conversation={conversation}
           onCall={onCall}
+          onClick={() => onOpenChat?.(conversation)}
         />
       ))}
     </div>

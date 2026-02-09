@@ -13,6 +13,7 @@ interface MeetDrawerContentProps {
   conversations: Conversation[];
   connectionState?: ConnectionState;
   onCall?: (conversation: Conversation) => void;
+  onOpenChat?: (conversation: Conversation) => void;
   onStartNewCall?: () => void;
   className?: string;
 }
@@ -21,6 +22,7 @@ const MeetDrawerContent: FC<MeetDrawerContentProps> = ({
   conversations,
   connectionState = "idle",
   onCall,
+  onOpenChat,
   onStartNewCall,
   className,
 }) => {
@@ -45,6 +47,7 @@ const MeetDrawerContent: FC<MeetDrawerContentProps> = ({
         <ConversationList
           conversations={conversations}
           onCall={onCall}
+          onOpenChat={onOpenChat}
           emptyMessage="No conversations yet."
         />
       </div>
