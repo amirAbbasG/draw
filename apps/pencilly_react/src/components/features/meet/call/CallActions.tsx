@@ -7,18 +7,23 @@ import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
+import type { GridSettings } from "./types";
+import LayoutSelector from "./LayoutSelector";
+
 interface CallActionsProps {
   isMicMuted: boolean;
   isVolumeMuted: boolean;
   isCameraMuted: boolean;
   isScreenSharing: boolean;
+  /** Grid layout settings */
+  gridSettings: GridSettings;
   onToggleMic: () => void;
   onToggleVolume: () => void;
   onToggleCamera: () => void;
   onToggleScreenShare: () => void;
   onReaction: () => void;
   onChat: () => void;
-  onGrid: () => void;
+  onGridSettingsChange: (settings: GridSettings) => void;
   onAddUser: () => void;
   onEndCall: () => void;
   className?: string;
@@ -29,13 +34,14 @@ const CallActions: FC<CallActionsProps> = ({
   isVolumeMuted,
   isCameraMuted,
   isScreenSharing,
+  gridSettings,
   onToggleMic,
   onToggleVolume,
   onToggleCamera,
   onToggleScreenShare,
   onReaction,
   onChat,
-  onGrid,
+  onGridSettingsChange,
   onAddUser,
   onEndCall,
   className,
@@ -113,14 +119,10 @@ const CallActions: FC<CallActionsProps> = ({
         className="rounded-lg bg-background"
       />
 
-      {/* Grid */}
-      <AppIconButton
-        icon={sharedIcons.grid}
-        size="default"
-        variant="outline"
-        title={t("grid_view")}
-        onClick={onGrid}
-        className="rounded-lg bg-background"
+      {/* Grid / Layout Selector */}
+      <LayoutSelector
+        settings={gridSettings}
+        onChange={onGridSettingsChange}
       />
 
       {/* Add User */}

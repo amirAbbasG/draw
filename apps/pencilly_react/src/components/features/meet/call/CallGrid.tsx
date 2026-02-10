@@ -2,15 +2,19 @@
 
 import React, { useMemo, useEffect, useRef, type FC } from "react";
 
-import { cn } from "@/lib/utils";
 import AppTypo from "@/components/ui/custom/app-typo";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
 
-import type { CallParticipant } from "./types";
+import type { CallParticipant, GridLayout } from "./types";
 import CallParticipantTile from "./CallParticipantTile";
 
 interface CallGridProps {
   participants: CallParticipant[];
+  /** Current grid layout mode */
+  layout?: GridLayout;
+  /** Max tiles to display (from slider) */
+  maxTiles?: number;
   onPin?: (id: string) => void;
   onRemove?: (id: string) => void;
   className?: string;
@@ -18,6 +22,8 @@ interface CallGridProps {
 
 const CallGrid: FC<CallGridProps> = ({
   participants,
+  layout = "auto",
+  maxTiles = 9,
   onPin,
   onRemove,
   className,
@@ -47,11 +53,14 @@ const CallGrid: FC<CallGridProps> = ({
     };
   }, [screenSharer?.screenTrack]);
 
-  // Screen share layout: screen on top, users in bottom row
+  // Limit visible participants based on maxTiles (except spotlight which shows 1)
+  const visibleParticipants =
+    layout === "spotlight" ? participants.slice(0, 1) : participants.slice(0, maxTiles);
+
+  // ----- Screen share layout: screen on top, users in bottom row -----
   if (screenSharer?.screenTrack) {
     return (
       <div className={cn("flex flex-col gap-4 h-full", className)}>
-        {/* Screen share area */}
         <div className="flex-1 min-h-0 rounded-lg overflow-hidden bg-foreground/5 relative">
           <video
             ref={screenVideoRef}
@@ -61,14 +70,13 @@ const CallGrid: FC<CallGridProps> = ({
           />
           <div className="absolute bottom-2 start-2 flex items-center gap-1 px-2 py-1 rounded-md bg-background/80 backdrop-blur-sm">
             <AppTypo variant="xs">
-              {screenSharer.isLocal ? t("me") : screenSharer.name} - {t("screen_share")}
+              {screenSharer.isLocal ? t("me") : screenSharer.name} -{" "}
+              {t("screen_share")}
             </AppTypo>
           </div>
         </div>
-
-        {/* Participants row */}
         <div className="flex gap-4 overflow-x-auto pb-1 shrink-0">
-          {participants.map((p) => (
+          {visibleParticipants.map((p) => (
             <CallParticipantTile
               key={p.id}
               participant={p}
@@ -83,12 +91,63 @@ const CallGrid: FC<CallGridProps> = ({
     );
   }
 
-  // Pinned layout: pinned user large on top, others in bottom row
-  if (pinnedUser) {
-    const others = participants.filter((p) => p.id !== pinnedUser.id);
+  // ----- Spotlight: one featured user, full area -----
+  if (layout === "spotlight") {
+    const featured = pinnedUser ?? visibleParticipants[0];
+    if (!featured) return null;
+    return (
+      <div className={cn("h-full", className)}>
+        <CallParticipantTile
+          participant={featured}
+          onPin={onPin}
+          onRemove={onRemove}
+          className="h-full w-full"
+        />
+      </div>
+    );
+  }
+
+  // ----- Sidebar: first user large on left, others stacked on right -----
+  if (layout === "sidebar") {
+    const featured = pinnedUser ?? visibleParticipants[0];
+    const others = visibleParticipants.filter((p) => p.id !== featured?.id);
+    if (!featured) return null;
+
+    return (
+      <div className={cn("flex gap-4 h-full", className)}>
+        {/* Main / large area */}
+        <div className="flex-1 min-w-0 min-h-0">
+          <CallParticipantTile
+            participant={featured}
+            onPin={onPin}
+            onRemove={onRemove}
+            className="h-full w-full"
+          />
+        </div>
+        {/* Sidebar strip */}
+        {others.length > 0 && (
+          <div className="flex flex-col gap-4 overflow-y-auto shrink-0 w-44">
+            {others.map((p) => (
+              <CallParticipantTile
+                key={p.id}
+                participant={p}
+                onPin={onPin}
+                onRemove={onRemove}
+                compact
+                className="w-full aspect-video shrink-0"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ----- Pinned layout (any mode): pinned user large on top, others bottom row -----
+  if (pinnedUser && layout !== "tiled") {
+    const others = visibleParticipants.filter((p) => p.id !== pinnedUser.id);
     return (
       <div className={cn("flex flex-col gap-4 h-full", className)}>
-        {/* Pinned user - large */}
         <div className="flex-1 min-h-0">
           <CallParticipantTile
             participant={pinnedUser}
@@ -97,8 +156,6 @@ const CallGrid: FC<CallGridProps> = ({
             className="h-full w-full"
           />
         </div>
-
-        {/* Others row */}
         {others.length > 0 && (
           <div className="flex gap-4 overflow-x-auto pb-1 shrink-0">
             {others.map((p) => (
@@ -117,28 +174,16 @@ const CallGrid: FC<CallGridProps> = ({
     );
   }
 
-  // Default grid layout
-  const count = participants.length;
-  const gridCols =
-    count <= 1
-      ? "grid-cols-1"
-      : count <= 2
-        ? "grid-cols-1 md:grid-cols-2"
-        : count <= 4
-          ? "grid-cols-2"
-          : count <= 6
-            ? "grid-cols-2 md:grid-cols-3"
-            : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+  // ----- Tiled: equal-sized grid -----
+  // ----- Auto: smart grid based on count -----
+  const count = visibleParticipants.length;
 
-  // Calculate row configuration for 5 users: 2 top + 3 bottom
-  const isUnevenFive = count === 5;
-
-  if (isUnevenFive) {
-    const topRow = participants.slice(0, 2);
-    const bottomRow = participants.slice(2, 5);
+  // Auto mode: use the 2-top + 3-bottom split for 5 users
+  if (layout === "auto" && count === 5) {
+    const topRow = visibleParticipants.slice(0, 2);
+    const bottomRow = visibleParticipants.slice(2, 5);
     return (
       <div className={cn("flex flex-col gap-4 h-full", className)}>
-        {/* Top row: 2 larger tiles */}
         <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
           {topRow.map((p) => (
             <CallParticipantTile
@@ -150,7 +195,6 @@ const CallGrid: FC<CallGridProps> = ({
             />
           ))}
         </div>
-        {/* Bottom row: 3 smaller tiles */}
         <div className="flex-1 min-h-0 grid grid-cols-3 gap-4">
           {bottomRow.map((p) => (
             <CallParticipantTile
@@ -167,6 +211,28 @@ const CallGrid: FC<CallGridProps> = ({
     );
   }
 
+  // Compute grid columns
+  const gridCols =
+    layout === "tiled"
+      ? // Tiled: always uniform squares, columns scale with count
+        count <= 1
+        ? "grid-cols-1"
+        : count <= 4
+          ? "grid-cols-2"
+          : count <= 9
+            ? "grid-cols-3"
+            : "grid-cols-4"
+      : // Auto: responsive columns
+        count <= 1
+        ? "grid-cols-1"
+        : count <= 2
+          ? "grid-cols-1 md:grid-cols-2"
+          : count <= 4
+            ? "grid-cols-2"
+            : count <= 6
+              ? "grid-cols-2 md:grid-cols-3"
+              : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+
   return (
     <div
       className={cn(
@@ -175,7 +241,7 @@ const CallGrid: FC<CallGridProps> = ({
         className,
       )}
     >
-      {participants.map((p) => (
+      {visibleParticipants.map((p) => (
         <CallParticipantTile
           key={p.id}
           participant={p}

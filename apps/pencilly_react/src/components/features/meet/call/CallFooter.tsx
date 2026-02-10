@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
-import type { CallOwner, CallRoom } from "./types";
+import type { CallOwner, CallRoom, GridSettings } from "./types";
 import CallActions from "./CallActions";
 
 interface CallFooterProps {
@@ -21,6 +21,8 @@ interface CallFooterProps {
   isVolumeMuted: boolean;
   isCameraMuted: boolean;
   isScreenSharing: boolean;
+  /** Grid layout settings */
+  gridSettings: GridSettings;
   // Action handlers
   onToggleMic: () => void;
   onToggleVolume: () => void;
@@ -28,7 +30,7 @@ interface CallFooterProps {
   onToggleScreenShare: () => void;
   onReaction: () => void;
   onChat: () => void;
-  onGrid: () => void;
+  onGridSettingsChange: (settings: GridSettings) => void;
   onAddUser: () => void;
   onEndCall: () => void;
   className?: string;
@@ -51,13 +53,14 @@ const CallFooter: FC<CallFooterProps> = ({
   isVolumeMuted,
   isCameraMuted,
   isScreenSharing,
+  gridSettings,
   onToggleMic,
   onToggleVolume,
   onToggleCamera,
   onToggleScreenShare,
   onReaction,
   onChat,
-  onGrid,
+  onGridSettingsChange,
   onAddUser,
   onEndCall,
   className,
@@ -110,13 +113,14 @@ const CallFooter: FC<CallFooterProps> = ({
         isVolumeMuted={isVolumeMuted}
         isCameraMuted={isCameraMuted}
         isScreenSharing={isScreenSharing}
+        gridSettings={gridSettings}
         onToggleMic={onToggleMic}
         onToggleVolume={onToggleVolume}
         onToggleCamera={onToggleCamera}
         onToggleScreenShare={onToggleScreenShare}
         onReaction={onReaction}
         onChat={onChat}
-        onGrid={onGrid}
+        onGridSettingsChange={onGridSettingsChange}
         onAddUser={onAddUser}
         onEndCall={onEndCall}
       />

@@ -7,9 +7,12 @@ export { default as CallActions } from "./CallActions";
 export { default as CallMinimized } from "./CallMinimized";
 export { default as AddUserPopup } from "./AddUserPopup";
 export { default as ReactionOverlay } from "./ReactionOverlay";
+export { default as LayoutSelector } from "./LayoutSelector";
 export type {
   CallParticipant,
   CallRoom,
   CallOwner,
   CallViewMode,
+  GridLayout,
+  GridSettings,
 } from "./types";

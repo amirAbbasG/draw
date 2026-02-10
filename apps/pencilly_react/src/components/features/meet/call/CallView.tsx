@@ -5,7 +5,7 @@ import React, { useState, useCallback, useRef, type FC } from "react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
 
-import type { CallParticipant, CallOwner, CallRoom, CallViewMode } from "./types";
+import type { CallParticipant, CallOwner, CallRoom, CallViewMode, GridSettings } from "./types";
 import type { MeetUser } from "../types";
 import CallHeader from "./CallHeader";
 import CallGrid from "./CallGrid";
@@ -65,6 +65,10 @@ const CallView: FC<CallViewProps> = ({
   const [pinnedUserId, setPinnedUserId] = useState<string | null>(null);
   const [reactions, setReactions] = useState<Record<string, string | null>>({});
   const [showAddUser, setShowAddUser] = useState(false);
+  const [gridSettings, setGridSettings] = useState<GridSettings>({
+    layout: "auto",
+    maxTiles: 9,
+  });
 
   // Reaction timeout refs
   const reactionTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -162,6 +166,8 @@ const CallView: FC<CallViewProps> = ({
         <div className="flex-1 min-h-0 px-4 pb-2">
           <CallGrid
             participants={participantsWithState}
+            layout={gridSettings.layout}
+            maxTiles={gridSettings.maxTiles}
             onPin={handlePin}
             onRemove={onRemoveParticipant}
             className="h-full"
@@ -181,16 +187,12 @@ const CallView: FC<CallViewProps> = ({
           onToggleVolume={() => setIsVolumeMuted((v) => !v)}
           onToggleCamera={() => setIsCameraMuted((v) => !v)}
           onToggleScreenShare={() => setIsScreenSharing((v) => !v)}
+          gridSettings={gridSettings}
           onReaction={() => {
-            // Handled by the ReactionOverlay inside CallActions
-            // For demo, trigger a thumbs up
             handleReaction("👍");
           }}
           onChat={() => onOpenChat?.()}
-          onGrid={() => {
-            // Toggle between grid layouts - cycle pin off
-            setPinnedUserId(null);
-          }}
+          onGridSettingsChange={setGridSettings}
           onAddUser={() => setShowAddUser((v) => !v)}
           onEndCall={() => {
             onEndCall?.();

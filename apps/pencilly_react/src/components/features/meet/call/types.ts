@@ -25,3 +25,11 @@ export interface CallOwner {
 }
 
 export type CallViewMode = "maximized" | "minimized";
+
+export type GridLayout = "auto" | "tiled" | "spotlight" | "sidebar";
+
+export interface GridSettings {
+  layout: GridLayout;
+  /** Max tiles to display (2-16), depends on window size */
+  maxTiles: number;
+}

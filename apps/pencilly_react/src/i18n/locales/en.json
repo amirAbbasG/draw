@@ -837,7 +837,16 @@
       "search_friends": "Search friends...",
       "no_friends_found": "No friends found.",
       "invite_email_placeholder": "Enter email to invite...",
-      "send": "Send"
+      "send": "Send",
+      "layout_change": "Change layout",
+      "layout_saved": "Selection is saved for future meetings",
+      "layout_auto": "Auto",
+      "layout_tiled": "Tiled",
+      "layout_spotlight": "Spotlight",
+      "layout_sidebar": "Sidebar",
+      "layout_tiles": "Tiles",
+      "layout_tiles_desc": "Maximum tiles to display, depending on window size",
+      "layout_tiles_disabled": "Can't change tile size in this layout"
     }
   }
 }

@@ -22,6 +22,7 @@ export {
   CallMinimized,
   AddUserPopup,
   ReactionOverlay,
+  LayoutSelector,
 } from "./call";
-export type { CallParticipant, CallRoom, CallOwner, CallViewMode } from "./call";
+export type { CallParticipant, CallRoom, CallOwner, CallViewMode, GridLayout, GridSettings } from "./call";
 export type { Conversation, MeetUser, ChatMessage, ChatView as ChatViewType, MessageStatus } from "./types";
