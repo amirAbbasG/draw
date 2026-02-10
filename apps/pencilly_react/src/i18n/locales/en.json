@@ -808,6 +808,36 @@
       "unknown": "Unknown",
       "online": "Online",
       "offline": "Offline"
+    },
+    "call": {
+      "me": "Me",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "remove": "Remove",
+      "more": "More",
+      "close": "Close",
+      "minimize": "Minimize",
+      "maximize": "Maximize",
+      "screen_share": "Screen Share",
+      "mute_mic": "Mute Microphone",
+      "unmute_mic": "Unmute Microphone",
+      "mute_volume": "Mute Volume",
+      "unmute_volume": "Unmute Volume",
+      "turn_on_camera": "Turn On Camera",
+      "turn_off_camera": "Turn Off Camera",
+      "share_screen": "Share Screen",
+      "stop_sharing": "Stop Sharing",
+      "reactions": "Reactions",
+      "chat": "Chat",
+      "grid_view": "Grid View",
+      "add_user": "Add User",
+      "end_call": "End Call",
+      "room_link": "Room Link",
+      "copy_link": "Copy Link",
+      "search_friends": "Search friends...",
+      "no_friends_found": "No friends found.",
+      "invite_email_placeholder": "Enter email to invite...",
+      "send": "Send"
     }
   }
 }

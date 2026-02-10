@@ -12,4 +12,16 @@ export { default as TypingIndicator } from "./TypingIndicator";
 export { default as MentionPopup } from "./MentionPopup";
 export { CallNotificationToast, MessageNotificationToast } from "./notification";
 export type { CallNotificationData, MessageNotificationData } from "./notification";
+export {
+  CallView,
+  CallHeader,
+  CallGrid,
+  CallParticipantTile,
+  CallFooter,
+  CallActions,
+  CallMinimized,
+  AddUserPopup,
+  ReactionOverlay,
+} from "./call";
+export type { CallParticipant, CallRoom, CallOwner, CallViewMode } from "./call";
 export type { Conversation, MeetUser, ChatMessage, ChatView as ChatViewType, MessageStatus } from "./types";
