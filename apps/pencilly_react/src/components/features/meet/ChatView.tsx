@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef, useEffect, useState, type FC } from "react";
 
 import { Show } from "@/components/shared/Show";
@@ -6,11 +8,13 @@ import { cn } from "@/lib/utils";
 
 import ChatBackground from "./ChatBackground";
 import ChatHeader from "./ChatHeader";
+import ChatInfo from "./ChatInfo";
 import ChatInput from "./ChatInput";
 import DateSeparator from "./DateSeparator";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
-import type { ChatMessage, ChatView as ChatViewType, Conversation } from "./types";
+import { ChatSettings } from "./chat-settings";
+import type { ChatMessage, ChatView as ChatViewType, ChatGroupSettings, Conversation } from "./types";
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -19,11 +23,22 @@ interface ChatViewProps {
   typingUsers?: string[];
   /** Custom SVG pattern color for chat background */
   backgroundPatternColor?: string;
+  /** Whether the current user is the group owner (shows settings) */
+  isOwner?: boolean;
+  /** Whether notifications are muted */
+  isMuted?: boolean;
+  /** Initial settings for the group (owner only) */
+  groupSettings?: ChatGroupSettings;
   onBack: () => void;
   onSendMessage: (text: string) => void;
   onCall?: () => void;
   onVideoCall?: () => void;
   onTitleEdit?: (newTitle: string) => void;
+  onMuteToggle?: () => void;
+  onLeaveGroup?: () => void;
+  onAvatarChange?: (file: File) => void;
+  onCallMember?: (memberId: string) => void;
+  onSettingsChange?: (settings: ChatGroupSettings) => void;
   className?: string;
 }
 
@@ -37,16 +52,46 @@ interface ChatViewProps {
  *
  * Supports switching between "chat" and "info" views via the info button in the header.
  */
+const DEFAULT_GROUP_SETTINGS: ChatGroupSettings = {
+  message: {
+    allowMembersToSend: true,
+    availability: "always",
+    schedule: { start: "08:00", end: "08:00", repeat: ["Su", "Mo"] },
+    allowedTypes: {
+      all: false,
+      textMessages: true,
+      images: true,
+      videos: true,
+      fileUploads: true,
+      links: false,
+    },
+    allowDeletion: true,
+  },
+  meeting: {
+    allowCreation: false,
+    chatDuringMeetingOnly: true,
+    allowRecording: true,
+  },
+};
+
 const ChatView: FC<ChatViewProps> = ({
   conversation,
   messages,
   typingUsers,
   backgroundPatternColor,
+  isOwner = false,
+  isMuted = false,
+  groupSettings,
   onBack,
   onSendMessage,
   onCall,
   onVideoCall,
   onTitleEdit,
+  onMuteToggle,
+  onLeaveGroup,
+  onAvatarChange,
+  onCallMember,
+  onSettingsChange,
   className,
 }) => {
   const [activeView, setActiveView] = useState<ChatViewType>("chat");
@@ -82,13 +127,30 @@ const ChatView: FC<ChatViewProps> = ({
       />
 
       <Show>
-        {/* Info view placeholder */}
+        {/* Settings view (owner only) */}
+        <Show.When isTrue={activeView === "settings"}>
+          <ChatSettings
+            defaultValues={groupSettings ?? DEFAULT_GROUP_SETTINGS}
+            onBack={() => setActiveView("info")}
+            onSettingsChange={onSettingsChange}
+          />
+        </Show.When>
+
+        {/* Info view */}
         <Show.When isTrue={activeView === "info"}>
-          <div className="flex-1 flex items-center justify-center p-6">
-            <AppTypo variant="small" color="muted">
-              Info page coming soon.
-            </AppTypo>
-          </div>
+          <ChatInfo
+            conversation={conversation}
+            isOwner={isOwner}
+            isMuted={isMuted}
+            onBack={() => setActiveView("chat")}
+            onCall={onCall}
+            onMuteToggle={onMuteToggle}
+            onSettings={() => setActiveView("settings")}
+            onLeaveGroup={onLeaveGroup}
+            onAvatarChange={onAvatarChange}
+            onNameChange={onTitleEdit}
+            onCallMember={onCallMember}
+          />
         </Show.When>
 
         {/* Chat view */}

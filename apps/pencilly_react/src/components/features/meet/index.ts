@@ -6,6 +6,8 @@ export { default as ChatHeader } from "./ChatHeader";
 export { default as ChatBackground } from "./ChatBackground";
 export { default as ChatInput } from "./ChatInput";
 export { default as ChatView } from "./ChatView";
+export { default as ChatInfo } from "./ChatInfo";
+export { ChatSettings, SettingsSection, SettingsToggleRow, SettingsRadioField, SettingsCheckboxGrid, SettingsTimeRange, SettingsDaySelector } from "./chat-settings";
 export { default as MessageBubble } from "./MessageBubble";
 export { default as DateSeparator } from "./DateSeparator";
 export { default as TypingIndicator } from "./TypingIndicator";
@@ -25,4 +27,4 @@ export {
   LayoutSelector,
 } from "./call";
 export type { CallParticipant, CallRoom, CallOwner, CallViewMode, GridLayout, GridSettings } from "./call";
-export type { Conversation, MeetUser, ChatMessage, ChatView as ChatViewType, MessageStatus } from "./types";
+export type { Conversation, MeetUser, ChatMessage, ChatView as ChatViewType, MessageStatus, ChatGroupSettings } from "./types";

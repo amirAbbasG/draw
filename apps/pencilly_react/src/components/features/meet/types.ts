@@ -32,4 +32,33 @@ export interface ChatMessage {
   isCurrentUser: boolean;
 }
 
-export type ChatView = "chat" | "info";
+export type ChatView = "chat" | "info" | "settings";
+
+/** Settings schema for a group chat */
+export interface ChatGroupSettings {
+  /** Message section */
+  message: {
+    allowMembersToSend: boolean;
+    availability: "always" | "only_during_meetings" | "custom_schedule";
+    schedule: {
+      start: string; // "HH:mm"
+      end: string;   // "HH:mm"
+      repeat: string[]; // e.g. ["Su","Mo"]
+    };
+    allowedTypes: {
+      all: boolean;
+      textMessages: boolean;
+      images: boolean;
+      videos: boolean;
+      fileUploads: boolean;
+      links: boolean;
+    };
+    allowDeletion: boolean;
+  };
+  /** Meeting section */
+  meeting: {
+    allowCreation: boolean;
+    chatDuringMeetingOnly: boolean;
+    allowRecording: boolean;
+  };
+}
