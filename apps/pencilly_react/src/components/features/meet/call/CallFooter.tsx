@@ -82,18 +82,18 @@ const CallFooter: FC<CallFooterProps> = ({
   return (
     <div
       className={cn(
-        "spacing-row px-4 py-2 shrink-0 gap-2",
+        "flex items-center justify-center md:justify-between px-2 md:px-4 py-2 shrink-0 gap-2",
         className,
       )}
     >
-      {/* Left: Owner info + elapsed */}
-      <div className="flex items-center gap-3 shrink-0 min-w-0">
+      {/* Left: Owner info + elapsed (hidden on small screens) */}
+      <div className="hidden md:flex items-center gap-3 shrink-0 min-w-0">
         <UserAvatar
           imageSrc={owner.avatarUrl}
           name={owner.name}
-          className="size-14  shrink-0"
+          className="size-14 shrink-0"
         />
-        <div className="col gap-1.5  min-w-0">
+        <div className="col gap-1.5 min-w-0">
           <AppTypo variant="headingS" className="font-semibold truncate">
             {owner.name}
           </AppTypo>
@@ -120,8 +120,8 @@ const CallFooter: FC<CallFooterProps> = ({
         onEndCall={onEndCall}
       />
 
-      {/* Right: Room link */}
-      <div className="col items-end gap-2 shrink-0 min-w-0 max-w-48">
+      {/* Right: Room link (hidden on small screens) */}
+      <div className="hidden md:flex md:flex-col items-end gap-2 shrink-0 min-w-0 max-w-48">
         <AppTypo variant="headingS" className="font-semibold">
           {t("room_link")}
         </AppTypo>
