@@ -910,6 +910,31 @@
       "connected": "Connected",
       "disconnected": "Disconnected",
       "idle": "Idle"
+    },
+    "schedule": {
+      "schedule_meeting": "Schedule Meeting",
+      "calendar": "Calendar",
+      "upcoming_meetings": "Upcoming Meetings",
+      "no_meetings": "No scheduled meetings",
+      "selected_date": "Selected Date",
+      "new_meeting": "New Meeting",
+      "create_new_meeting": "Create New Meeting",
+      "meeting_title": "Meeting Title",
+      "meeting_title_placeholder": "Enter meeting title",
+      "description": "Description",
+      "description_placeholder": "Add meeting description",
+      "date": "Date",
+      "event_type": "Event Type",
+      "meeting": "Meeting",
+      "event": "Event",
+      "start_time": "Start Time",
+      "end_time": "End Time",
+      "location": "Location",
+      "location_placeholder": "Enter location or room",
+      "join_meeting": "Join",
+      "attached_board": "Attached Board",
+      "cancel": "Cancel",
+      "close": "Close"
     }
   }
 }
