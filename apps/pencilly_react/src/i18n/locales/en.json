@@ -910,6 +910,33 @@
       "connected": "Connected",
       "disconnected": "Disconnected",
       "idle": "Idle"
+    },
+    "schedule": {
+      "calendar": "Calendar",
+      "title": "Upcoming Meetings",
+      "schedule_meeting": "Schedule Meeting",
+      "daily_event": "Daily Event",
+      "event_title": "Event Title:",
+      "event_title_placeholder": "Io Sprint Planning",
+      "date": "Date:",
+      "select_date": "Select a date",
+      "start_time": "Start:",
+      "end_time_optional": "End (Optional):",
+      "repeat": "Repeat:",
+      "members": "Members:",
+      "members_placeholder": "Example@email.com",
+      "members_hint": "You Can Add Multiple Participants At Once By Uploading A CSV Or Excel File.",
+      "import_email_list": "Import Email List (CSV Or Excel)",
+      "attach_board": "Attach Board:",
+      "attach_board_placeholder": "Select a board",
+      "schedule": "Schedule Meeting",
+      "close": "Close",
+      "join_meeting": "Join Meeting",
+      "edit": "Edit",
+      "delete": "Delete",
+      "attached_board": "Attached Board",
+      "no_meetings": "No scheduled meetings for this date.",
+      "no_events": "No daily events for this date."
     }
   }
 }

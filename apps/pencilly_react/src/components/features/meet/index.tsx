@@ -21,6 +21,7 @@ import { useTranslations } from "@/i18n";
 
 import Chat from "./chat";
 import ConversationPage from "./conversation";
+import { ScheduleDrawer } from "./schedule";
 import type { ChatMessage, ConnectionState, Conversation } from "./types";
 import StatusBadge from "@/components/features/meet/StatusBadge";
 import {showIncomingCall} from "@/components/features/meet/notification";
@@ -126,6 +127,8 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     />
   );
 
+  const [showSchedule, setShowSchedule] = useState(false);
+
   //test
   const [showCallView, setShowCallView] = useState(false);
 
@@ -159,6 +162,20 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       >
         <div className="spacing-row gap-2 px-3 py-2 border-y">
           <StatusBadge status={connectionState} />
+          <ScheduleDrawer
+            open={showSchedule}
+            onOpenChange={setShowSchedule}
+            connectionState={connectionState}
+            Trigger={
+              <DynamicButton
+                icon="hugeicons:calendar-03"
+                title={t("schedule.schedule_meeting")}
+                variant="outline"
+                className="!h-7 !text-xs"
+                onClick={() => setShowSchedule(true)}
+              />
+            }
+          />
           <RenderIf isTrue={!activeConversation && !isEmpty(conversations)}>
             <DynamicButton
               icon="hugeicons:call-add"
