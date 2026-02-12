@@ -51,72 +51,72 @@ const CallActions: FC<CallActionsProps> = ({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 rounded-lg bg-muted/80 backdrop-blur-sm px-4 py-2",
+        "flex items-center flex-wrap justify-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 rounded-lg bg-muted/80 backdrop-blur-sm px-2 sm:px-3 md:px-4 py-1.5 sm:py-2",
         className,
       )}
     >
       {/* Mic */}
       <AppIconButton
         icon={isMicMuted ? sharedIcons.mic_off : sharedIcons.mic}
-        size="default"
+        size="sm"
         variant="outline"
         color={isMicMuted ? "danger" : "default"}
         title={isMicMuted ? t("unmute_mic") : t("mute_mic")}
         onClick={onToggleMic}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* Volume */}
       <AppIconButton
         icon={isVolumeMuted ? "hugeicons:volume-off" : sharedIcons.speak}
-        size="default"
+        size="sm"
         variant="outline"
         color={isVolumeMuted ? "danger" : "default"}
         title={isVolumeMuted ? t("unmute_volume") : t("mute_volume")}
         onClick={onToggleVolume}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* Camera */}
       <AppIconButton
         icon={isCameraMuted ? sharedIcons.video_off : sharedIcons.video}
-        size="default"
+        size="sm"
         variant="outline"
         color={isCameraMuted ? "danger" : "default"}
         title={isCameraMuted ? t("turn_on_camera") : t("turn_off_camera")}
         onClick={onToggleCamera}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* Screen Share */}
       <AppIconButton
         icon={isScreenSharing ? sharedIcons.screen_share_off : sharedIcons.screen_share}
-        size="default"
+        size="sm"
         variant="outline"
         color={isScreenSharing ? "success" : "default"}
         title={isScreenSharing ? t("stop_sharing") : t("share_screen")}
         onClick={onToggleScreenShare}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* Reactions */}
       <AppIconButton
         icon="hugeicons:smile"
-        size="default"
+        size="sm"
         variant="outline"
         title={t("reactions")}
         onClick={onReaction}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* Chat */}
       <AppIconButton
         icon={sharedIcons.chat}
-        size="default"
+        size="sm"
         variant="outline"
         title={t("chat")}
         onClick={onChat}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* Grid / Layout Selector */}
@@ -128,22 +128,22 @@ const CallActions: FC<CallActionsProps> = ({
       {/* Add User */}
       <AppIconButton
         icon={sharedIcons.user_add}
-        size="default"
+        size="sm"
         variant="outline"
         title={t("add_user")}
         onClick={onAddUser}
-        className="rounded-lg bg-background"
+        className="rounded-lg bg-background sm:size-8"
       />
 
       {/* End Call */}
       <AppIconButton
         icon={sharedIcons.call_end}
-        size="default"
+        size="sm"
         variant="fill"
         color="danger"
         title={t("end_call")}
         onClick={onEndCall}
-        className="rounded-lg"
+        className="rounded-lg sm:size-8"
       />
     </div>
   );
