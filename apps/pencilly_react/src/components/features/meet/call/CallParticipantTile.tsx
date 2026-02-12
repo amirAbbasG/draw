@@ -76,7 +76,7 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
           <UserAvatar
             imageSrc={avatarUrl}
             name={name}
-            className={cn(compact ? "size-18" : "size-28", "text-base")}
+            className={cn(compact ? "size-12 sm:size-18" : "size-16 sm:size-28", "text-base")}
           />
         </div>
       )}

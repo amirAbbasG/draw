@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, type FC } from "react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 import type {CallParticipant, CallOwner, CallRoom, CallViewMode, GridSettings} from "./types";
 import CallHeader from "./CallHeader";
@@ -52,6 +53,8 @@ const CallView: FC<CallViewProps> = ({
   className,
 }) => {
   const t = useTranslations("meet.call");
+  const { isLessThan } = useBreakpoint();
+  const isSmallScreen = isLessThan("sm");
 
   const [viewMode, setViewMode] = useState<CallViewMode>("maximized");
   const [isMicMuted, setIsMicMuted] = useState(false);
@@ -64,6 +67,11 @@ const CallView: FC<CallViewProps> = ({
     layout: "auto",
     maxTiles: 9,
   });
+
+  // Force "auto" layout on small screens (< 640px)
+  const effectiveGridSettings: GridSettings = isSmallScreen
+    ? { ...gridSettings, layout: "auto" }
+    : gridSettings;
 
 
   // Reaction timeout refs
@@ -159,14 +167,14 @@ const CallView: FC<CallViewProps> = ({
         />
 
         {/* Video Grid */}
-        <div className="flex-1 min-h-0 px-4 pb-2">
+        <div className="flex-1 min-h-0 px-2 sm:px-4 pb-2">
           <CallGrid
             participants={participantsWithState}
             onPin={handlePin}
             onRemove={onRemoveParticipant}
             className="h-full"
-            layout={gridSettings.layout}
-            maxTiles={gridSettings.maxTiles}
+            layout={effectiveGridSettings.layout}
+            maxTiles={effectiveGridSettings.maxTiles}
           />
         </div>
 
