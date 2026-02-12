@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useDrawUsers } from "@/services/user";
 
-import EmojiPicker from "./EmojiPicker";
+import EmojiPicker from "../../shared/EmojiPicker";
 
 interface IProps {
   rootClassName?: string;

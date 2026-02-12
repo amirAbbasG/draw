@@ -2,7 +2,6 @@ import React, { type FC } from "react";
 
 import { useShallow } from "zustand/react/shallow";
 
-import CallDrawer from "@/components/features/call";
 import FileMenu from "@/components/features/header/file-menu";
 import HeaderTabs from "@/components/features/header/HeaderTabs";
 import AppHistory from "@/components/features/history";
@@ -12,6 +11,7 @@ import AppLogo from "@/components/shared/AppLogo";
 import RenderIf from "@/components/shared/RenderIf";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/zustand/ui/ui-store";
+import MeetDrawer from "@/components/features/meet";
 
 interface IProps {
   drawAPI: DrawAPI;
@@ -54,7 +54,8 @@ const Header: FC<IProps> = ({ drawAPI, activeTab }) => {
         </RenderIf>
         {/*<ThemeSelect />*/}
         <ScreenRecorder />
-        <CallDrawer />
+        {/*<CallDrawer />*/}
+        <MeetDrawer/>
         <AppHistory />
         <UserMenu />
       </div>

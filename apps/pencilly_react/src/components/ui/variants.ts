@@ -26,6 +26,7 @@ export const paletteColors = {
     "[--lighter:theme(colors.primary.lighter)]",
     "[--light:theme(colors.primary.light)]",
     "[--icon:theme(colors.foreground.icon)]",
+    "[--fill-foreground:theme(colors.foreground.icon-light)]",
   ],
   danger: [
     "[--color:theme(colors.danger.DEFAULT)]",
@@ -34,6 +35,7 @@ export const paletteColors = {
     "[--lighter:theme(colors.danger.lighter)]",
     "[--light:theme(colors.danger.light)]",
     "[--icon:theme(colors.danger.DEFAULT)]",
+    "[--fill-foreground:theme(colors.foreground.icon-light)]",
   ],
   success: [
     "[--color:theme(colors.success.DEFAULT)]",
@@ -42,6 +44,7 @@ export const paletteColors = {
     "[--lighter:theme(colors.success.lighter)]",
     "[--light:theme(colors.success.light)]",
     "[--icon:theme(colors.success.DEFAULT)]",
+    "[--fill-foreground:theme(colors.foreground.icon-light)]",
   ],
   warning: [
     "[--color:theme(colors.warning.DEFAULT)]",
@@ -50,6 +53,7 @@ export const paletteColors = {
     "[--lighter:theme(colors.warning.lighter)]",
     "[--light:theme(colors.warning.light)]",
     "[--icon:theme(colors.warning.DEFAULT)]",
+    "[--fill-foreground:theme(colors.foreground.icon-light)]",
   ],
   info: [
     "[--color:theme(colors.info.DEFAULT)]",
@@ -58,6 +62,7 @@ export const paletteColors = {
     "[--lighter:theme(colors.info.lighter)]",
     "[--light:theme(colors.info.light)]",
     "[--icon:theme(colors.info.DEFAULT)]",
+    "[--fill-foreground:theme(colors.foreground.icon-light)]",
   ],
 };
 

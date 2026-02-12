@@ -1,6 +1,6 @@
 import React, { type FC } from "react";
 
-import EmojiPicker from "@/components/features/comment/EmojiPicker";
+import EmojiPicker from "@/components/shared/EmojiPicker";
 import type { Reaction } from "@/components/features/comment/types";
 import { Button } from "@/components/ui/button";
 

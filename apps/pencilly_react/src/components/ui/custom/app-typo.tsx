@@ -66,7 +66,7 @@ type props = {
 } & React.HTMLAttributes<HTMLElement>;
 
 const variant = {
-  default: "text-base",
+  default: "text-base font-normal",
   code: "text-sm leading-5",
   large: "text-lg leading-6",
   small: "text-sm leading-4",
@@ -76,8 +76,8 @@ const variant = {
   headingL: "text-2xl leading-7 font-bold",
   headingM: "text-xl leading-6 font-bold",
   headingS: "text-lg leading-5 font-bold",
-  headingXS: "text-base leading-5 font-bold",
-  headingXXS: "text-sm leading-4 font-bold",
+  headingXS: "text-base leading-5 font-semibold",
+  headingXXS: "text-sm leading-4  font-semibold",
 };
 
 const variantMobileSize = {
@@ -91,8 +91,8 @@ const variantMobileSize = {
   headingL: "max-md:text-2xl max-md:leading-7 font-bold",
   headingM: "max-md:text-xl max-md:leading-6 font-bold",
   headingS: "max-md:text-lg max-md:leading-5 font-bold",
-  headingXS: "max-md:text-base max-md:leading-5 font-bold",
-  headingXXS: "max-md:text-sm max-md:leading-4 font-bold",
+  headingXS: "max-md:text-base max-md:leading-5  font-semibold",
+  headingXXS: "max-md:text-sm max-md:leading-4 font-semibold",
 };
 
 const color = {
@@ -103,7 +103,7 @@ const color = {
   primary: "text-primary",
 };
 
-const classVariance = cva("", {
+const classVariance = cva("font-sans", {
   variants: {
     variant,
     color,

@@ -6,6 +6,8 @@ import React, {
   type PropsWithChildren,
 } from "react";
 
+import { SocketId } from "@excalidraw/excalidraw/types";
+
 import ActiveSession from "@/components/features/share/ActiveSession";
 import { InitialMenu } from "@/components/features/share/InitialMenu";
 import LiveShare from "@/components/features/share/LiveShare";
@@ -34,6 +36,8 @@ interface IProps {
   setUsername: CollabAPI["setUsername"];
   paramRoom: string | null;
   shouldJoinFromParam: boolean;
+  isCurrentOwner: boolean;
+  sendKickCollaboratorMessage: (id: SocketId) => void;
 }
 
 const ShareDialog: FC<PropsWithChildren<IProps>> = ({
@@ -49,6 +53,8 @@ const ShareDialog: FC<PropsWithChildren<IProps>> = ({
   shouldJoinFromParam,
   startCollaboration,
   username,
+  isCurrentOwner,
+  sendKickCollaboratorMessage,
 }) => {
   const [showCollaboration, setShowCollaboration] = useState(false);
   const stopSessionRef = useRef<(() => void) | null>(null);
@@ -108,7 +114,12 @@ const ShareDialog: FC<PropsWithChildren<IProps>> = ({
           </Show.When>
 
           <Show.Else>
-            <ActiveSession stopSession={onStopSession} userName={username} />
+            <ActiveSession
+              stopSession={onStopSession}
+              userName={username}
+              isCurrentOwner={isCurrentOwner}
+              sendKickCollaboratorMessage={sendKickCollaboratorMessage}
+            />
           </Show.Else>
         </Show>
       </DialogContent>

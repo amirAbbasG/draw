@@ -102,7 +102,7 @@ const EditableDiv = forwardRef<HTMLDivElement, Props>(
           data-placeholder={placeholder}
         />
         {inputText.trim() === "" && (
-          <div className="absolute h-10 top-0 left-0 flex text-base font-light text-foreground-light pointer-events-none">
+          <div className="absolute h-7 top-0 left-0 flex text-base font-light text-foreground-light pointer-events-none">
             {placeholder}
           </div>
         )}

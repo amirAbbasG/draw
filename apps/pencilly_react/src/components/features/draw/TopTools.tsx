@@ -1,10 +1,13 @@
 import React, { type FC } from "react";
 
+
+
 import { useShallow } from "zustand/react/shallow";
+
+
 
 import AITriggers from "@/components/features/draw/ai/AITriggers";
 import { ShareTrigger } from "@/components/features/share";
-import { CollaboratorsPopup } from "@/components/features/share/collaborators";
 import DynamicButton from "@/components/shared/DynamicButton";
 import RenderIf from "@/components/shared/RenderIf";
 import AppIcon from "@/components/ui/custom/app-icon";
@@ -15,11 +18,15 @@ import { useUiStore } from "@/stores/zustand/ui/ui-store";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
+
+
+
+
 interface IProps {
   drawAPI: DrawAPI;
   isCollaborating: boolean;
   isOffline: boolean;
-    isCollabViewMode: boolean;
+  isCollabViewMode: boolean;
   isExporting: boolean;
   isOwner: boolean;
   collabErrorMessage: string;
@@ -38,9 +45,7 @@ const TopTools: FC<IProps> = ({
     isCollaborating,
     isOffline,
     isCollabViewMode,
-    isOwner,
     collabErrorMessage,
-    sendKickMessage,
 }) => {
   const t = useTranslations("draw_tools");
   const isFullScreen = useUiStore(useShallow(s => s.isFullScreenDraw));
@@ -88,12 +93,12 @@ const TopTools: FC<IProps> = ({
           onClick={openShare}
         />
       </div>
-      <RenderIf isTrue={isCollaborating && isOffline}>
-        <CollaboratorsPopup
-          isCurrentOwner={isOwner}
-          sendKickCollaboratorMessage={sendKickMessage}
-        />
-      </RenderIf>
+      {/*<RenderIf isTrue={isCollaborating && isOffline}>*/}
+      {/*  <CollaboratorsPopup*/}
+      {/*    isCurrentOwner={isOwner}*/}
+      {/*    sendKickCollaboratorMessage={sendKickMessage}*/}
+      {/*  />*/}
+      {/*</RenderIf>*/}
 
       <RenderIf isTrue={isCollaborating && isOffline}>
         <div className="h-10 centered-col">

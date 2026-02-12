@@ -26,10 +26,10 @@ const iconVariants = cva(
         default: `text-[var(--icon)] hover:bg-[var(--lighter)] active:bg-[var(--light)]
  disabled:text-foreground-disable data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-80
  selected:bg-[var(--lighter)] selected:border selected:border-[var(--light)] selected:text-[var(--color)]`,
-        fill: `bg-[var(--color)] dark:bg-[var(--light)] text-primary-foreground hover:bg-[var(--dark)] dark:hover:bg-[var(--color)] active:bg-[var(--darker)]
+        fill: `bg-[var(--color)] dark:bg-[var(--light)] text-[var(--fill-foreground)] hover:bg-[var(--dark)] dark:hover:bg-[var(--color)] active:bg-[var(--darker)]
  disabled:bg-background-dark disabled:text-foreground-disable disabled:border-background-dark
  selected:bg-[var(--lighter)] selected:text-[var(--color)]`,
-        outline: `text-[var(--icon)] border hover:bg-[var(--lighter)] hover:border-[var(--darker)] hover:text-[var(--darker)] active:bg-[var(--light)]
+        outline: `text-[var(--icon)] border hover:bg-[var(--lighter)] hover:border-[var(--icon)]/40 hover:text-[var(--dark)] active:bg-[var(--light)]
  disabled:bg-background-dark disabled:text-foreground-disable disabled:border-background-dark
  selected:border-[var(--color)] selected:border selected:text-[var(--color)] selected:bg-[var(--lighter)]`,
         ghost: "text-[var(--icon)] disabled:text-foreground-disable",
@@ -44,7 +44,17 @@ const iconVariants = cva(
           "[--lighter:#717276]",
           "[--light:#5a5959]",
           "[--icon:#fff]",
+          "[--fill-foreground:theme(colors.foreground.icon)]",
         ],
+        background: [
+          "[--color:theme(colors.background.DEFAULT)]",
+          "[--dark:theme(colors.background.light)]",
+          "[--darker:theme(colors.background.lighter)]",
+          "[--lighter:theme(colors.background.darker)]",
+          "[--light:theme(colors.background.dark)]",
+          "[--icon:theme(colors.foreground.icon)]",
+          "[--fill-foreground:theme(colors.foreground.icon)]",
+        ]
       },
       size: {
         default: "h-8 w-8",
@@ -90,7 +100,7 @@ export type IconProps = Omit<
   asChild?: boolean;
   selected?: boolean;
   size?: "default" | "xl" | "lg" | "sm" | "xs";
-  color?: typeColorVariant | "light";
+  color?: typeColorVariant | "light" | "background";
   variant?: "default" | "fill" | "ghost" | "outline";
   icon: string;
   tooltipColor?: typeColorVariant;
@@ -118,11 +128,11 @@ const AppIconButton = forwardRef<HTMLButtonElement, IconProps>(
     ref,
   ) => {
     const sizeIconList = {
-      default: 20,
+      default: 18,
       xs: 16,
       sm: 18,
       lg: 20,
-      xl: 32,
+      xl: 20,
     };
 
     const Comp = element;

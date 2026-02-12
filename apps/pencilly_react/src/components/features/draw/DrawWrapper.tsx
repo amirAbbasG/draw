@@ -61,17 +61,17 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
 
   const {
     startCollaboration,
-      sendKickMessage,
-        isCollaborating,
-        isCollabViewMode,
-        collabErrorMessage,
-        isOffline,
-        isOwner,
-      shouldJoinFromParam,
-      paramRoom,
-        setUsername,
-      username
-  } = collabAPI
+    sendKickMessage,
+    isCollaborating,
+    isCollabViewMode,
+    collabErrorMessage,
+    isOffline,
+    isOwner,
+    shouldJoinFromParam,
+    paramRoom,
+    setUsername,
+    username,
+  } = collabAPI;
 
   const paginationAPI = usePaginationActions({
     drawAPI,
@@ -123,7 +123,6 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
   };
 
   const hidePagination = isCollaborating && !isOwner;
-
 
   return (
     <>
@@ -196,6 +195,8 @@ const DrawWrapper: FC<PropsWithChildren<IProps>> = ({
       </Excalidraw>
       <SelectionMenu drawAPI={drawAPI} bounds={selectionBounds} />
       <Share
+        sendKickCollaboratorMessage={sendKickMessage}
+        isCurrentOwner={isOwner}
         clearLink={() => setShareLink("")}
         onExportToBackend={exportLink}
         onClose={closeShare}

@@ -1,10 +1,16 @@
-import React, { type FC } from "react";
+import React, { FC } from "react";
+
+
 
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
 
-interface IProps {
+
+
+
+
+interface CallBoxProps {
   icon: string;
   title: string;
   subtitle: string;
@@ -12,7 +18,7 @@ interface IProps {
   rootClassName?: string;
 }
 
-const ActionBox: FC<PropsWithChildren<IProps>> = ({
+export const CallBox: FC<PropsWithChildren<CallBoxProps>> = ({
   children,
   icon,
   iconClassName,
@@ -23,11 +29,11 @@ const ActionBox: FC<PropsWithChildren<IProps>> = ({
   return (
     <div
       className={cn(
-        "rounded-lg border   p-4 space-y-4 hover:border-primary transition-colors",
+        "rounded border p-3 col gap-3 hover:border-primary transition-colors",
         rootClassName,
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="row gap-3 mb-3">
         <AppIcon
           icon={icon}
           className={cn(
@@ -35,8 +41,8 @@ const ActionBox: FC<PropsWithChildren<IProps>> = ({
             iconClassName,
           )}
         />
-        <div>
-          <AppTypo variant="headingS" type="h3">
+        <div className="col gap-0.5">
+          <AppTypo variant="headingXS" type="h3">
             {title}
           </AppTypo>
           <AppTypo variant="small" color="secondary">
@@ -48,5 +54,3 @@ const ActionBox: FC<PropsWithChildren<IProps>> = ({
     </div>
   );
 };
-
-export default ActionBox;
