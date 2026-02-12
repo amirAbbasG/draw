@@ -46,8 +46,6 @@ const layouts = [
   },
 ] as const;
 
-const LAYOUTS: GridLayout[] = ["auto", "tiled", "spotlight", "sidebar"];
-
 const LayoutSelector: FC<LayoutSelectorProps> = ({
   settings,
   onChange,
@@ -88,7 +86,10 @@ const LayoutSelector: FC<LayoutSelectorProps> = ({
           iconClassName="[&_g]:stroke-[1.25] [&_path]:stroke-[1.25] [&_rect]:stroke-[1.25]"
         />
       </PopoverTrigger>
-      <PopoverContent sideOffset={10} className="w-72 p-3.5 z-60 col gap-2">
+      <PopoverContent
+        sideOffset={10}
+        className={cn("w-72 p-3.5 z-100 col gap-2", className)}
+      >
         <PopupHeader
           title={t("layout_change")}
           icon={sharedIcons.grid}

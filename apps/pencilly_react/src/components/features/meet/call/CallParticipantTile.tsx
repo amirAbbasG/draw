@@ -9,6 +9,7 @@ import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
 import type { CallParticipant } from "./types";
+import {useIsTouchDevice} from "@/hooks/useIsTouchDevice";
 
 interface CallParticipantTileProps {
   participant: CallParticipant;
@@ -28,6 +29,8 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
 }) => {
   const t = useTranslations("meet.call");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const isTouchDevice = useIsTouchDevice()
+
 
   const {
     id,
@@ -54,6 +57,8 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
 
   const hasVideo = !!videoTrack && !isCameraOff;
 
+
+
   return (
     <div
       className={cn(
@@ -76,7 +81,10 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
           <UserAvatar
             imageSrc={avatarUrl}
             name={name}
-            className={cn(compact ? "size-18" : "size-28", "text-base")}
+            className={cn(
+              compact ? "size-12 sm:size-18" : "size-16 sm:size-28",
+              "text-base",
+            )}
           />
         </div>
       )}
@@ -119,7 +127,7 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
           <div
             className={cn(
               "row gap-2 transition-opacity",
-              "opacity-0 group-hover:opacity-100",
+              !isTouchDevice && " lg:opacity-0 group-hover:opacity-100",
               // showMenu
               //   ? "opacity-100"
               //   : "opacity-0 group-hover:opacity-100",

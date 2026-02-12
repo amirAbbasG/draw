@@ -1,15 +1,20 @@
-"use client";
+import React, { useCallback, useRef, useState, type FC } from "react";
 
-import React, { useState, useCallback, useRef, type FC } from "react";
+import { useMediaQuery } from "usehooks-ts";
 
 import { cn } from "@/lib/utils";
-import { useTranslations } from "@/i18n";
 
-import type {CallParticipant, CallOwner, CallRoom, CallViewMode, GridSettings} from "./types";
-import CallHeader from "./CallHeader";
-import CallGrid from "./CallGrid";
 import CallFooter from "./CallFooter";
+import CallGrid from "./CallGrid";
+import CallHeader from "./CallHeader";
 import CallMinimized from "./CallMinimized";
+import type {
+  CallOwner,
+  CallParticipant,
+  CallRoom,
+  CallViewMode,
+  GridSettings,
+} from "./types";
 
 interface CallViewProps {
   /** Current participants in the call */
@@ -51,7 +56,7 @@ const CallView: FC<CallViewProps> = ({
   onRemoveParticipant,
   className,
 }) => {
-  const t = useTranslations("meet.call");
+  const isSmallScreen = useMediaQuery("(max-width: 640px)"); // sm breakpoint
 
   const [viewMode, setViewMode] = useState<CallViewMode>("maximized");
   const [isMicMuted, setIsMicMuted] = useState(false);
@@ -65,11 +70,17 @@ const CallView: FC<CallViewProps> = ({
     maxTiles: 9,
   });
 
+  // Force "auto" layout on small screens (< 640px)
+  const effectiveGridSettings: GridSettings = isSmallScreen
+    ? { ...gridSettings, layout: "auto" }
+    : gridSettings;
 
   // Reaction timeout refs
-  const reactionTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const reactionTimeouts = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
+  >({});
 
-  const participantsWithState: CallParticipant[] = participants.map((p) => ({
+  const participantsWithState: CallParticipant[] = participants.map(p => ({
     ...p,
     isPinned: p.id === pinnedUserId,
     isCameraOff: p.isLocal ? isCameraMuted : p.isCameraOff,
@@ -77,17 +88,14 @@ const CallView: FC<CallViewProps> = ({
     reaction: reactions[p.id] ?? null,
   }));
 
-  const handlePin = useCallback(
-    (id: string) => {
-      setPinnedUserId((prev) => (prev === id ? null : id));
-    },
-    [],
-  );
+  const handlePin = useCallback((id: string) => {
+    setPinnedUserId(prev => (prev === id ? null : id));
+  }, []);
 
   const handleReaction = useCallback(
     (emoji: string) => {
       // Show reaction on the current user's tile
-      setReactions((prev) => ({ ...prev, [owner.id]: emoji }));
+      setReactions(prev => ({ ...prev, [owner.id]: emoji }));
 
       // Clear previous timeout if exists
       if (reactionTimeouts.current[owner.id]) {
@@ -96,7 +104,7 @@ const CallView: FC<CallViewProps> = ({
 
       // Auto-clear reaction after 3 seconds
       reactionTimeouts.current[owner.id] = setTimeout(() => {
-        setReactions((prev) => ({ ...prev, [owner.id]: null }));
+        setReactions(prev => ({ ...prev, [owner.id]: null }));
       }, 3000);
     },
     [owner.id],
@@ -119,8 +127,8 @@ const CallView: FC<CallViewProps> = ({
   if (viewMode === "minimized") {
     // Find the speaking participant, or fallback to the first remote user
     const speakingUser =
-      participantsWithState.find((p) => p.isSpeaking && !p.isLocal) ??
-      participantsWithState.find((p) => !p.isLocal) ??
+      participantsWithState.find(p => p.isSpeaking && !p.isLocal) ??
+      participantsWithState.find(p => !p.isLocal) ??
       participantsWithState[0];
 
     return (
@@ -128,8 +136,8 @@ const CallView: FC<CallViewProps> = ({
         participant={speakingUser}
         isMicMuted={isMicMuted}
         isCameraMuted={isCameraMuted}
-        onToggleMic={() => setIsMicMuted((v) => !v)}
-        onToggleCamera={() => setIsCameraMuted((v) => !v)}
+        onToggleMic={() => setIsMicMuted(v => !v)}
+        onToggleCamera={() => setIsCameraMuted(v => !v)}
         onMaximize={handleMaximize}
         onClose={handleClose}
       />
@@ -140,7 +148,7 @@ const CallView: FC<CallViewProps> = ({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-60 flex bg-background-lighter",
+        "absolute inset-0 z-100 flex bg-background-lighter",
         className,
       )}
     >
@@ -159,14 +167,14 @@ const CallView: FC<CallViewProps> = ({
         />
 
         {/* Video Grid */}
-        <div className="flex-1 min-h-0 px-4 pb-2">
+        <div className="flex-1 min-h-0 px-2 sm:px-4 pb-2">
           <CallGrid
             participants={participantsWithState}
             onPin={handlePin}
             onRemove={onRemoveParticipant}
             className="h-full"
-            layout={gridSettings.layout}
-            maxTiles={gridSettings.maxTiles}
+            layout={effectiveGridSettings.layout}
+            maxTiles={effectiveGridSettings.maxTiles}
           />
         </div>
 
@@ -179,10 +187,10 @@ const CallView: FC<CallViewProps> = ({
           isVolumeMuted={isVolumeMuted}
           isCameraMuted={isCameraMuted}
           isScreenSharing={isScreenSharing}
-          onToggleMic={() => setIsMicMuted((v) => !v)}
-          onToggleVolume={() => setIsVolumeMuted((v) => !v)}
-          onToggleCamera={() => setIsCameraMuted((v) => !v)}
-          onToggleScreenShare={() => setIsScreenSharing((v) => !v)}
+          onToggleMic={() => setIsMicMuted(v => !v)}
+          onToggleVolume={() => setIsVolumeMuted(v => !v)}
+          onToggleCamera={() => setIsCameraMuted(v => !v)}
+          onToggleScreenShare={() => setIsScreenSharing(v => !v)}
           gridSettings={gridSettings}
           onGridSettingsChange={setGridSettings}
           onReaction={handleReaction}

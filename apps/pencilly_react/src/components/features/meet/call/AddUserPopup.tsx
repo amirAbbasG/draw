@@ -1,7 +1,6 @@
 import React, { useState, type FC } from "react";
 
 import { UserAvatar } from "@/components/features/user/UserAvatar";
-import { OrDivider } from "@/components/shared/OrDivider";
 import PopupHeader from "@/components/shared/PopupHeader";
 import { Button } from "@/components/ui/button";
 import AppIcon from "@/components/ui/custom/app-icon";
@@ -25,6 +24,10 @@ interface AddUserPopupProps {
   onSendEmailInvite?: (email: string) => void;
   className?: string;
   children?: React.ReactNode;
+  triggerProps?: Omit<
+    React.ComponentProps<typeof AppIconButton>,
+    "icon" | "title" | "element"
+  >;
 }
 
 const AddUserPopup: FC<AddUserPopupProps> = ({
@@ -33,6 +36,7 @@ const AddUserPopup: FC<AddUserPopupProps> = ({
   onSendEmailInvite,
   className,
   children,
+  triggerProps,
 }) => {
   const t = useTranslations("meet.call");
   const [isOpen, setIsOpen] = useState(false);
@@ -57,16 +61,17 @@ const AddUserPopup: FC<AddUserPopupProps> = ({
         {children ?? (
           <AppIconButton
             icon={sharedIcons.user_add}
-            size="xl"
-            variant="fill"
-            color="background"
             title={t("add_user")}
             element="div"
-            className={cn("", className)}
+            className={cn("", triggerProps.className)}
+            {...triggerProps}
           />
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-72 z-60 p-3.5 col gap-2" sideOffset={10}>
+      <PopoverContent
+        className={cn("w-72 p-3.5 col gap-2 z-100", className)}
+        sideOffset={10}
+      >
         {/* Header */}
         <PopupHeader
           title={t("add_user")}

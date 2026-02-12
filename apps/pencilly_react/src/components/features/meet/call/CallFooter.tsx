@@ -8,7 +8,7 @@ import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
 import CallActions from "./CallActions";
-import type {CallOwner, CallRoom, GridSettings} from "./types";
+import type { CallOwner, CallRoom, GridSettings } from "./types";
 
 interface CallFooterProps {
   owner: CallOwner;
@@ -58,8 +58,8 @@ const CallFooter: FC<CallFooterProps> = ({
   onChat,
   onEndCall,
   className,
-    gridSettings,
-    onGridSettingsChange
+  gridSettings,
+  onGridSettingsChange,
 }) => {
   const t = useTranslations("meet.call");
   const [elapsed, setElapsed] = useState(0);
@@ -82,18 +82,18 @@ const CallFooter: FC<CallFooterProps> = ({
   return (
     <div
       className={cn(
-        "spacing-row px-4 py-2 shrink-0 gap-2",
+        "flex flex-col lg:flex-row items-center justify-center lg:justify-between px-2 md:px-4 py-2 shrink-0 gap-2",
         className,
       )}
     >
-      {/* Left: Owner info + elapsed */}
-      <div className="flex items-center gap-3 shrink-0 min-w-0">
+      {/* Left: Owner info + elapsed (hidden on small screens) */}
+      <div className="hidden lg:flex items-center gap-3 shrink-0 min-w-0">
         <UserAvatar
           imageSrc={owner.avatarUrl}
           name={owner.name}
-          className="size-14  shrink-0"
+          className="size-14 shrink-0"
         />
-        <div className="col gap-1.5  min-w-0">
+        <div className="col gap-1.5 min-w-0">
           <AppTypo variant="headingS" className="font-semibold truncate">
             {owner.name}
           </AppTypo>
@@ -120,9 +120,9 @@ const CallFooter: FC<CallFooterProps> = ({
         onEndCall={onEndCall}
       />
 
-      {/* Right: Room link */}
-      <div className="col items-end gap-2 shrink-0 min-w-0 max-w-48">
-        <AppTypo variant="headingS" className="font-semibold">
+      {/* Right: Room link (hidden on small screens) */}
+      <div className="col lg:items-end gap-2 shrink-0 min-w-0 max-w-full lg:max-w-48">
+        <AppTypo variant="headingS" className="font-semibold max-lg:hidden">
           {t("room_link")}
         </AppTypo>
         <button

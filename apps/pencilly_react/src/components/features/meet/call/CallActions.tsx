@@ -9,6 +9,7 @@ import AppIconButton from "@/components/ui/custom/app-icon-button";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
+import {useMediaQuery} from "usehooks-ts";
 
 interface CallActionsProps {
   isMicMuted: boolean;
@@ -27,13 +28,7 @@ interface CallActionsProps {
   onGridSettingsChange: (settings: GridSettings) => void;
 }
 
-const commonProps = {
-  size: "xl",
-  variant: "fill",
-  color: "background",
-} as const;
-
-const Divider = () => <div className="h-10 w-[1px] bg-background " />;
+const Divider = () => <div className="h-6 sm:h-8 md:h-10 w-[1px] bg-background" />;
 
 const CallActions: FC<CallActionsProps> = ({
   isMicMuted,
@@ -53,11 +48,20 @@ const CallActions: FC<CallActionsProps> = ({
   onGridSettingsChange,
 }) => {
   const t = useTranslations("meet.call");
+  const isCompact = useMediaQuery("(max-width: 640px)"); // sm breakpoint
+  const isMobile = useMediaQuery("(max-width: 420px)"); // xs breakpoint
+
+
+  const commonProps = {
+    size: isMobile ? ("sm" as const) :  isCompact ? ("default" as const) : ("xl" as const),
+    variant: "fill" as const,
+    color: "background" as const,
+  };
 
   return (
     <div
       className={cn(
-        "row gap-4 rounded-lg bg-background-dark  backdrop-blur-sm px-4 py-2",
+        "row gap-2 md:gap-4 rounded-lg bg-background-dark backdrop-blur-sm px-2 md:px-4 py-1.5 md:py-2",
         className,
       )}
     >
@@ -103,19 +107,21 @@ const CallActions: FC<CallActionsProps> = ({
 
       <Divider />
 
-      {/* Reactions */}
-      <EmojiPicker
-        onChange={onReaction}
-        reactionsDefaultOpen
-        Trigger={
-          <AppIconButton
-            icon="hugeicons:smile"
-            {...commonProps}
-            title={t("reactions")}
-            element="div"
-          />
-        }
-      />
+      {/* Reactions (hidden on small screens) */}
+      {/*{!isCompact && (*/}
+        <EmojiPicker
+          onChange={onReaction}
+          reactionsDefaultOpen
+          Trigger={
+            <AppIconButton
+              icon="hugeicons:smile"
+              {...commonProps}
+              title={t("reactions")}
+              element="div"
+            />
+          }
+        />
+      {/*)}*/}
 
       {/* Chat */}
       <AppIconButton
@@ -125,14 +131,21 @@ const CallActions: FC<CallActionsProps> = ({
         onClick={onChat}
       />
 
-      {/* Grid */}
-      <LayoutSelector settings={gridSettings} onChange={onGridSettingsChange} />
+      {/* Grid (hidden on small screens) */}
+      {!isCompact && (
+        <LayoutSelector
+          settings={gridSettings}
+          onChange={onGridSettingsChange}
+        />
+      )}
 
-      <AddUserPopup
-        friends={friends}
-        onInvite={() => {}}
-        onSendEmailInvite={() => {}}
-      />
+      {/* Add User (hidden on small screens) */}
+        <AddUserPopup
+          friends={friends}
+          onInvite={() => {}}
+          onSendEmailInvite={() => {}}
+          triggerProps={commonProps}
+        />
 
       <Divider />
 

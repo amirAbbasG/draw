@@ -1,5 +1,3 @@
-"use client";
-
 import React, { type FC } from "react";
 
 import AppIconButton from "@/components/ui/custom/app-icon-button";
@@ -24,16 +22,11 @@ const CallHeader: FC<CallHeaderProps> = ({
   const t = useTranslations("meet.call");
 
   return (
-    <div
-      className={cn(
-        "spacing-row p-4 shrink-0",
-        className,
-      )}
-    >
-      {/* Center: title */}
+    <div className={cn("spacing-row p-4 shrink-0", className)}>
+      {/*  title */}
       <AppTypo
         variant="headingM"
-        className="absolute left-1/2 -translate-x-1/2"
+        // className="absolute left-1/2 -translate-x-1/2"
       >
         {title}
       </AppTypo>

@@ -60,7 +60,7 @@ const CallGrid: FC<CallGridProps> = ({
   // ----- Screen share layout: screen on top, users in bottom row -----
   if (screenSharer?.screenTrack) {
     return (
-      <div className={cn("col gap-4 h-full", className)}>
+      <div className={cn("col gap-2 sm:gap-4 h-full", className)}>
         <div className="flex-1 min-h-0 rounded-lg overflow-hidden bg-foreground/5 relative">
           <video
             ref={screenVideoRef}
@@ -75,7 +75,7 @@ const CallGrid: FC<CallGridProps> = ({
             </AppTypo>
           </div>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-1 shrink-0 p-0.5">
+        <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 shrink-0 p-0.5">
           {visibleParticipants.map(p => (
             <CallParticipantTile
               key={p.id}
@@ -83,7 +83,7 @@ const CallGrid: FC<CallGridProps> = ({
               onPin={onPin}
               onRemove={onRemove}
               compact
-              className="w-48 shrink-0 aspect-video"
+              className="w-28 sm:w-48 shrink-0 aspect-video"
             />
           ))}
         </div>
@@ -108,13 +108,19 @@ const CallGrid: FC<CallGridProps> = ({
   }
 
   // ----- Sidebar: first user large on left, others stacked on right -----
+  // On small screens, switch to vertical layout (featured on top, others in a bottom row)
   if (layout === "sidebar") {
     const featured = pinnedUser ?? visibleParticipants[0];
     const others = visibleParticipants.filter(p => p.id !== featured?.id);
     if (!featured) return null;
 
     return (
-      <div className={cn("flex gap-4 h-full", className)}>
+      <div
+        className={cn(
+          "flex flex-col sm:flex-row gap-2 sm:gap-4 h-full",
+          className,
+        )}
+      >
         {/* Main / large area */}
         <div className="flex-1 min-w-0 min-h-0">
           <CallParticipantTile
@@ -124,9 +130,9 @@ const CallGrid: FC<CallGridProps> = ({
             className="h-full w-full"
           />
         </div>
-        {/* Sidebar strip */}
+        {/* Sidebar strip - horizontal scroll on small, vertical on sm+ */}
         {others.length > 0 && (
-          <div className="col gap-4 overflow-y-auto shrink-0 w-44 p-0.5">
+          <div className="flex sm:flex-col gap-2 sm:gap-4 overflow-x-auto sm:overflow-y-auto sm:overflow-x-hidden shrink-0 sm:w-44 p-0.5">
             {others.map(p => (
               <CallParticipantTile
                 key={p.id}
@@ -134,7 +140,7 @@ const CallGrid: FC<CallGridProps> = ({
                 onPin={onPin}
                 onRemove={onRemove}
                 compact
-                className="w-full aspect-video shrink-0"
+                className="w-28 sm:w-full shrink-0 aspect-video"
               />
             ))}
           </div>
@@ -147,7 +153,7 @@ const CallGrid: FC<CallGridProps> = ({
   if (pinnedUser && layout !== "tiled") {
     const others = visibleParticipants.filter(p => p.id !== pinnedUser.id);
     return (
-      <div className={cn("col gap-4 h-full", className)}>
+      <div className={cn("col gap-2 sm:gap-4 h-full", className)}>
         <div className="flex-1 min-h-0">
           <CallParticipantTile
             participant={pinnedUser}
@@ -157,7 +163,7 @@ const CallGrid: FC<CallGridProps> = ({
           />
         </div>
         {others.length > 0 && (
-          <div className="flex gap-4 overflow-x-auto pb-1 shrink-0 p-0.5">
+          <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 shrink-0 p-0.5">
             {others.map(p => (
               <CallParticipantTile
                 key={p.id}
@@ -165,7 +171,7 @@ const CallGrid: FC<CallGridProps> = ({
                 onPin={onPin}
                 onRemove={onRemove}
                 compact
-                className="w-48 shrink-0 aspect-video"
+                className="w-28 sm:w-48 shrink-0 aspect-video"
               />
             ))}
           </div>
@@ -178,13 +184,13 @@ const CallGrid: FC<CallGridProps> = ({
   // ----- Auto: smart grid based on count -----
   const count = visibleParticipants.length;
 
-  // Auto mode: use the 2-top + 3-bottom split for 5 users
+  // Auto mode: use the 2-top + 3-bottom split for 5 users (only on sm+)
   if (layout === "auto" && count === 5) {
     const topRow = visibleParticipants.slice(0, 2);
     const bottomRow = visibleParticipants.slice(2, 5);
     return (
-      <div className={cn("flex flex-col gap-4  h-full", className)}>
-        <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
+      <div className={cn("flex flex-col gap-2 sm:gap-4 h-full", className)}>
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-2 sm:gap-4">
           {topRow.map(p => (
             <CallParticipantTile
               key={p.id}
@@ -195,7 +201,7 @@ const CallGrid: FC<CallGridProps> = ({
             />
           ))}
         </div>
-        <div className="flex-1 min-h-0 grid grid-cols-3 gap-4 ">
+        <div className="flex-1 min-h-0 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
           {bottomRow.map(p => (
             <CallParticipantTile
               key={p.id}
@@ -218,23 +224,29 @@ const CallGrid: FC<CallGridProps> = ({
         count <= 1
         ? "grid-cols-1"
         : count <= 4
-          ? "grid-cols-2"
+          ? "grid-cols-1 sm:grid-cols-2"
           : count <= 9
-            ? "grid-cols-3"
-            : "grid-cols-4"
+            ? "grid-cols-2 sm:grid-cols-3"
+            : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
       : // Auto: responsive columns
         count <= 1
         ? "grid-cols-1"
         : count <= 2
-          ? "grid-cols-1 md:grid-cols-2"
+          ? "grid-cols-1 sm:grid-cols-2"
           : count <= 4
-            ? "grid-cols-2"
+            ? "grid-cols-1 sm:grid-cols-2"
             : count <= 6
-              ? "grid-cols-2 md:grid-cols-3"
-              : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+              ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3"
+              : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
 
   return (
-    <div className={cn("grid gap-4 h-full auto-rows-fr ", gridCols, className)}>
+    <div
+      className={cn(
+        "grid gap-2 sm:gap-4 h-full auto-rows-fr",
+        gridCols,
+        className,
+      )}
+    >
       {visibleParticipants.map(p => (
         <CallParticipantTile
           key={p.id}
