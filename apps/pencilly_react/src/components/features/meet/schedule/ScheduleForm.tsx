@@ -9,9 +9,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AppIcon from "@/components/ui/custom/app-icon";
+import AppTypo from "@/components/ui/custom/app-typo";
 import { useTranslations } from "@/i18n";
 import { cn } from "@/lib/utils";
-import type { ScheduleMeetingFormData, MeetingParticipant } from "./types";
+import type { ScheduleMeetingFormData } from "./types";
 
 interface ScheduleFormProps {
   onSubmit: (data: ScheduleMeetingFormData) => void;
@@ -67,10 +68,10 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className={cn("space-y-4 p-4 bg-background rounded-lg", className)}
+      className={cn("space-y-4", className)}
     >
       <div>
-        <label className="text-sm font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground block mb-2">
           {t("meeting_title")}
         </label>
         <Input
@@ -78,13 +79,12 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
           placeholder={t("meeting_title_placeholder")}
           value={formData.title || ""}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className="mt-2"
           required
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground block mb-2">
           {t("description")}
         </label>
         <Input
@@ -94,13 +94,12 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
           onChange={(e) =>
             setFormData({ ...formData, description: e.target.value })
           }
-          className="mt-2"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground block mb-2">
             {t("date")}
           </label>
           <Input
@@ -111,13 +110,12 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
                 : ""
             }
             onChange={handleDateChange}
-            className="mt-2"
             required
           />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground block mb-2">
             {t("event_type")}
           </label>
           <Select
@@ -129,7 +127,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
               })
             }
           >
-            <SelectTrigger className="mt-2">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -142,7 +140,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground block mb-2">
             {t("start_time")}
           </label>
           <Input
@@ -151,12 +149,11 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
             onChange={(e) =>
               setFormData({ ...formData, startTime: e.target.value })
             }
-            className="mt-2"
           />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground block mb-2">
             {t("end_time")}
           </label>
           <Input
@@ -165,13 +162,12 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
             onChange={(e) =>
               setFormData({ ...formData, endTime: e.target.value })
             }
-            className="mt-2"
           />
         </div>
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground block mb-2">
           {t("location")}
         </label>
         <Input
@@ -181,7 +177,6 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
           onChange={(e) =>
             setFormData({ ...formData, location: e.target.value })
           }
-          className="mt-2"
         />
       </div>
 
@@ -191,11 +186,6 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
           disabled={isLoading}
           className="flex-1"
         >
-          {isLoading ? (
-            <AppIcon icon="hugeicons:loading-01" className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <AppIcon icon="hugeicons:calendar-add-01" className="w-4 h-4 mr-2" />
-          )}
           {t("schedule_meeting")}
         </Button>
         {onCancel && (

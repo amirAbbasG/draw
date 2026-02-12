@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import AppIcon from "@/components/ui/custom/app-icon";
+import AppIconButton from "@/components/ui/custom/app-icon-button";
+import AppTypo from "@/components/ui/custom/app-typo";
 import { useTranslations } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { sharedIcons } from "@/constants/icons";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { UpcomingMeetings } from "./UpcomingMeetings";
 import { ScheduleForm } from "./ScheduleForm";
@@ -64,12 +67,10 @@ export const ScheduleMeeting: React.FC<ScheduleMeetingProps> = ({
   };
 
   const handleJoinMeeting = (meeting: ScheduledMeeting) => {
-    console.log("[v0] Joining meeting:", meeting);
     // Integrate with actual call logic
   };
 
   const handleEditMeeting = (meeting: ScheduledMeeting) => {
-    console.log("[v0] Editing meeting:", meeting);
     // Implement edit logic
   };
 
@@ -81,19 +82,19 @@ export const ScheduleMeeting: React.FC<ScheduleMeetingProps> = ({
     <div className={cn("flex flex-col gap-4 h-full", className)}>
       <Show>
         <Show.When isTrue={!showForm}>
-          <div className="flex flex-col gap-4 overflow-y-auto flex-1 pr-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">
+          <div className="flex flex-col gap-4 overflow-y-auto flex-1">
+            <div className="flex items-center justify-between px-1">
+              <AppTypo variant="headingM">
                 {t("schedule_meeting")}
-              </h2>
-              <Button
+              </AppTypo>
+              <AppIconButton
+                icon="hugeicons:calendar-add-01"
                 size="sm"
                 onClick={() => setShowForm(true)}
-                className="gap-1"
-              >
-                <AppIcon icon="hugeicons:calendar-add-01" className="w-4 h-4" />
-                {t("new_meeting")}
-              </Button>
+                title={t("new_meeting")}
+                variant="fill"
+                color="primary"
+              />
             </div>
 
             <ScheduleCalendar
@@ -113,18 +114,17 @@ export const ScheduleMeeting: React.FC<ScheduleMeetingProps> = ({
         </Show.When>
 
         <Show.When isTrue={showForm}>
-          <div className="flex flex-col gap-3 overflow-y-auto flex-1 pr-2">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
+          <div className="flex flex-col gap-4 overflow-y-auto flex-1">
+            <div className="flex items-center gap-2 px-1">
+              <AppIconButton
+                icon="hugeicons:arrow-left-01"
+                size="sm"
                 onClick={() => setShowForm(false)}
-              >
-                <AppIcon icon="hugeicons:arrow-left-01" className="w-4 h-4" />
-              </Button>
-              <h2 className="text-base font-semibold text-foreground">
+                title={t("close")}
+              />
+              <AppTypo variant="headingM">
                 {t("create_new_meeting")}
-              </h2>
+              </AppTypo>
             </div>
 
             <ScheduleForm
@@ -135,16 +135,6 @@ export const ScheduleMeeting: React.FC<ScheduleMeetingProps> = ({
           </div>
         </Show.When>
       </Show>
-
-      {onClose && (
-        <Button
-          variant="outline"
-          onClick={onClose}
-          className="w-full"
-        >
-          {t("close")}
-        </Button>
-      )}
     </div>
   );
 };

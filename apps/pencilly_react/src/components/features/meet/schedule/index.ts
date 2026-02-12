@@ -4,5 +4,6 @@ export { UpcomingMeetings } from "./UpcomingMeetings";
 export { ScheduleForm } from "./ScheduleForm";
 export { MeetingCard } from "./MeetingCard";
 export { MeetingNotification } from "./MeetingNotification";
+export { ScheduleMeetingModal } from "./ScheduleMeetingModal";
 export { useScheduleMeetings } from "./useScheduleMeetings";
 export type { ScheduledMeeting, MeetingParticipant, ScheduleMeetingFormData } from "./types";

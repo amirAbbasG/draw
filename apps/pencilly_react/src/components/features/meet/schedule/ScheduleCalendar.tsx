@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
-import AppIcon from "@/components/ui/custom/app-icon";
+import AppIconButton from "@/components/ui/custom/app-icon-button";
+import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
+import { sharedIcons } from "@/constants/icons";
 import type { ScheduledMeeting } from "./types";
 
 interface ScheduleCalendarProps {
   onDateSelect: (date: Date) => void;
   selectedDate?: Date;
   meetings?: ScheduledMeeting[];
+  onClose?: () => void;
   className?: string;
 }
 
@@ -17,6 +19,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   onDateSelect,
   selectedDate,
   meetings = [],
+  onClose,
   className,
 }) => {
   const [date, setDate] = useState<Date | undefined>(selectedDate);
@@ -37,16 +40,26 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   };
 
   return (
-    <div className={cn("flex flex-col gap-4 p-4 bg-background rounded-lg border", className)}>
+    <div className={cn("flex flex-col gap-4 p-4 bg-background rounded-lg", className)}>
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm">{t("calendar")}</h3>
+        <AppTypo variant="headingS">
+          {t("calendar")}
+        </AppTypo>
+        {onClose && (
+          <AppIconButton
+            icon={sharedIcons.close}
+            size="sm"
+            onClick={onClose}
+            title={t("close")}
+          />
+        )}
       </div>
       <Calendar
         mode="single"
         selected={date}
         onSelect={handleDateSelect}
         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-        className="rounded-md border"
+        className="rounded-md"
       />
     </div>
   );
