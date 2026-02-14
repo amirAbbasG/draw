@@ -1,16 +1,17 @@
 import React, { useState, type FC } from "react";
 
+
+
 import { createPortal } from "react-dom";
 
-import {
-  CallOwner,
-  CallParticipant,
-  CallRoom,
-  CallView,
-} from "@/components/features/meet/call";
+
+
+import { CallOwner, CallParticipant, CallRoom, CallView } from "@/components/features/meet/call";
+import { showIncomingCall } from "@/components/features/meet/notification";
 import { CallNotificationData } from "@/components/features/meet/notification/CallNotificationToast";
 import { MessageNotificationData } from "@/components/features/meet/notification/MessageNotificationToast";
 import StartCall from "@/components/features/meet/start";
+import StatusBadge from "@/components/features/meet/StatusBadge";
 import AppDrawer from "@/components/shared/AppDrawer";
 import DynamicButton from "@/components/shared/DynamicButton";
 import RenderIf from "@/components/shared/RenderIf";
@@ -19,11 +20,13 @@ import { isEmpty } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
+
+
 import Chat from "./chat";
 import ConversationPage from "./conversation";
+import { ScheduleDrawer } from "./schedule";
 import type { ChatMessage, ConnectionState, Conversation } from "./types";
-import StatusBadge from "@/components/features/meet/StatusBadge";
-import {showIncomingCall} from "@/components/features/meet/notification";
+
 
 interface MeetDrawerProps {
   Trigger?: React.ReactNode;
@@ -32,14 +35,14 @@ interface MeetDrawerProps {
 }
 
 const MeetDrawer: FC<MeetDrawerProps> = ({
-  Trigger,
-  open: controlledOpen,
-  onOpenChange,
-}) => {
+                                           Trigger,
+                                           open: controlledOpen,
+                                           onOpenChange,
+                                         }) => {
   const t = useTranslations("meet");
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeConversation, setActiveConversation] =
-    useState<Conversation | null>(null);
+      useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(DEMO_MESSAGES);
 
   const conversations = DEMO_CONVERSATIONS;
@@ -118,13 +121,15 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
   };
 
   const defaultTrigger = (
-    <DynamicButton
-      icon={sharedIcons.call}
-      title="Meet"
-      variant="outline"
-      hideLabel
-    />
+      <DynamicButton
+          icon={sharedIcons.call}
+          title="Meet"
+          variant="outline"
+          hideLabel
+      />
   );
+
+  const [showSchedule, setShowSchedule] = useState(false);
 
   //test
   const [showCallView, setShowCallView] = useState(false);
@@ -158,7 +163,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
         modal={false}
       >
         <div className="spacing-row gap-2 px-3 py-2 border-y">
-          <StatusBadge status={connectionState} />
+
           <RenderIf isTrue={!activeConversation && !isEmpty(conversations)}>
             <DynamicButton
               icon="hugeicons:call-add"
@@ -167,12 +172,12 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
               className="!h-7 !text-xs"
               onClick={() => {
                 //   start call
-
                 //test
-                showIncomingCall(callData, () => setShowCallView(true))
-               // showMessageNotification(messageData)
+                showIncomingCall(callData, () => setShowCallView(true));
+                // showMessageNotification(messageData)
               }}
             />
+            <StatusBadge className="ms-auto" status={connectionState} />
           </RenderIf>
         </div>
         <Show>
@@ -215,6 +220,13 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
             />
           </Show.Else>
         </Show>
+        <div className="w-full p-2 bg flex">
+        <ScheduleDrawer
+          open={showSchedule}
+          onOpenChange={setShowSchedule}
+          connectionState={connectionState}
+        />
+        </div>
       </AppDrawer>
     </>
   );

@@ -55,6 +55,7 @@ interface IProps {
   variant?: "fixed" | "overlay" | "dynamic";
   containerId?: string;
   contentClassName?: string;
+  triggerClassName?: string;
   modal?: boolean;
 }
 
@@ -71,6 +72,7 @@ const AppDrawer: FC<PropsWithChildren<IProps>> = ({
   containerId = "app-layout",
   contentClassName,
   modal = true,
+  triggerClassName,
 }) => {
   const [isPin, setIsPin] = useState(false);
   const [isOpenLocal, setIsOpenLocal] = useState(false);
@@ -119,6 +121,7 @@ const AppDrawer: FC<PropsWithChildren<IProps>> = ({
       modal={modal}
     >
       <DrawerTrigger
+        className={triggerClassName}
         onClick={e => {
           if (!isAuth && needsAuth) {
             e.preventDefault();

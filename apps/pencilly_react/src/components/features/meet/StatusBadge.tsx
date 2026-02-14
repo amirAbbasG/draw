@@ -55,13 +55,13 @@ const statusConfig: Record<
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 rounded-full px-2 py-1",
+        "flex items-center gap-1 rounded-full px-2 py-1",
         config.bg,
         className,
       )}
     >
-      <AppIcon icon={config.icon} className={cn("h-3.5 w-3.5", config.color)} />
-      <AppTypo variant="xs" className={config.color}>
+      <AppIcon icon={config.icon} className={cn("size-4", config.color)} />
+      <AppTypo variant="headingXXS" className={cn("pb-[1px]", config.color)}>
         {statusMessage || statusText[status]}
       </AppTypo>
     </div>
