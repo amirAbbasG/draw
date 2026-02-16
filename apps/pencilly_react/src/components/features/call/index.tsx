@@ -1,8 +1,8 @@
 import React, { useEffect, useState, type FC } from "react";
 
 import { CallDrawerContent } from "@/components/features/call/CallDrawerContent";
-import { useLiveKit } from "@/components/features/call/hooks/useLiveKit";
-import { useStreamSession } from "@/components/features/call/hooks/useStreamSession";
+import { useLiveKit } from "@/components/features/meet/hooks/useLiveKit";
+import { useStreamSession } from "@/components/features/meet/hooks/useStreamSession";
 import { StreamSession } from "@/components/features/call/types";
 import AppDrawer from "@/components/shared/AppDrawer";
 import DynamicButton from "@/components/shared/DynamicButton";

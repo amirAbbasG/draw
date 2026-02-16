@@ -445,7 +445,7 @@ const LayerUI = ({
               {!appState.viewModeEnabled &&
                 appState.openDialog?.name !== "elementLinkSelector" &&
                 (!isSidebarDocked ||
-                  appState.openSidebar?.name !== DEFAULT_SIDEBAR.name) && (
+                  appState?.openSidebar?.name !== DEFAULT_SIDEBAR.name) && (
                   <tunnels.DefaultSidebarTriggerTunnel.Out />
                 )}
               {shouldShowStats && (
@@ -615,7 +615,7 @@ const LayerUI = ({
           <div
             className="layer-ui__wrapper"
             style={
-              appState.openSidebar &&
+              appState?.openSidebar &&
               isSidebarDocked &&
               device.editor.canFitSidebar
                 ? { width: `calc(100% - var(--right-sidebar-width))` }

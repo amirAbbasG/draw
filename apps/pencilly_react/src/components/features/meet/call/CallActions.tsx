@@ -26,6 +26,7 @@ interface CallActionsProps {
   className?: string;
   gridSettings: GridSettings;
   onGridSettingsChange: (settings: GridSettings) => void;
+  isOpenSidebar?: boolean;
 }
 
 const Divider = () => <div className="h-6 sm:h-8 md:h-10 w-[1px] bg-background" />;
@@ -41,15 +42,18 @@ const CallActions: FC<CallActionsProps> = ({
   onToggleScreenShare,
   onReaction,
   onChat,
-
+isOpenSidebar,
   onEndCall,
   className,
   gridSettings,
   onGridSettingsChange,
 }) => {
   const t = useTranslations("meet.call");
-  const isCompact = useMediaQuery("(max-width: 640px)"); // sm breakpoint
+  const isSm = useMediaQuery("(max-width: 640px)"); // sm breakpoint
+  const isXl = useMediaQuery("(max-width: 1280px)"); // xl breakpoint
   const isMobile = useMediaQuery("(max-width: 420px)"); // xs breakpoint
+
+  const isCompact = isOpenSidebar ? isXl : isSm;
 
 
   const commonProps = {
@@ -100,7 +104,7 @@ const CallActions: FC<CallActionsProps> = ({
             : sharedIcons.screen_share
         }
         {...commonProps}
-        iconClassName={isCameraMuted ? "text-success" : ""}
+        iconClassName={isScreenSharing ? "text-success" : ""}
         title={isScreenSharing ? t("stop_sharing") : t("share_screen")}
         onClick={onToggleScreenShare}
       />
@@ -140,12 +144,12 @@ const CallActions: FC<CallActionsProps> = ({
       )}
 
       {/* Add User (hidden on small screens) */}
-        <AddUserPopup
-          friends={friends}
-          onInvite={() => {}}
-          onSendEmailInvite={() => {}}
-          triggerProps={commonProps}
-        />
+      {/*  <AddUserPopup*/}
+      {/*    friends={friends}*/}
+      {/*    onInvite={() => {}}*/}
+      {/*    onSendEmailInvite={() => {}}*/}
+      {/*    triggerProps={commonProps}*/}
+      {/*  />*/}
 
       <Divider />
 
@@ -162,7 +166,3 @@ const CallActions: FC<CallActionsProps> = ({
 };
 
 export default CallActions;
-
-const friends: MeetUser[] = [
-  { id: "f1", name: "Sara", avatarUrl: "/avatars/sara.jpg" },
-];

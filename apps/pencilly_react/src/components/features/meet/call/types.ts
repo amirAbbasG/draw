@@ -1,4 +1,5 @@
 import type { MeetUser } from "../types";
+import {LocalTrack, RemoteTrack} from "@/components/features/call/types";
 
 export interface CallParticipant extends MeetUser {
   isMuted?: boolean;
@@ -7,7 +8,7 @@ export interface CallParticipant extends MeetUser {
   isPinned?: boolean;
   isLocal?: boolean;
   isScreenSharing?: boolean;
-  videoTrack?: MediaStreamTrack | null;
+  videoTrack?:  RemoteTrack | null;
   screenTrack?: MediaStreamTrack | null;
   reaction?: string | null;
 }

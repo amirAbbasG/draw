@@ -1,15 +1,16 @@
-import React, { useState, type FC } from "react";
-
-
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 
 import { createPortal } from "react-dom";
 
-
-
-import { CallOwner, CallParticipant, CallRoom, CallView } from "@/components/features/meet/call";
-import { showIncomingCall } from "@/components/features/meet/notification";
-import { CallNotificationData } from "@/components/features/meet/notification/CallNotificationToast";
-import { MessageNotificationData } from "@/components/features/meet/notification/MessageNotificationToast";
+import { CallView } from "@/components/features/meet/call";
+import { showMessageNotification } from "@/components/features/meet/notification";
 import StartCall from "@/components/features/meet/start";
 import StatusBadge from "@/components/features/meet/StatusBadge";
 import AppDrawer from "@/components/shared/AppDrawer";
@@ -17,16 +18,21 @@ import DynamicButton from "@/components/shared/DynamicButton";
 import RenderIf from "@/components/shared/RenderIf";
 import { Show } from "@/components/shared/Show";
 import { isEmpty } from "@/lib/utils";
+import { useUser } from "@/stores/context/user";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
-
-
+import type { CallOwner, CallRoom } from "./call/types";
 import Chat from "./chat";
 import ConversationPage from "./conversation";
-import { ScheduleDrawer } from "./schedule";
-import type { ChatMessage, ConnectionState, Conversation } from "./types";
-
+import { useChatMessages } from "./hooks/useChatMessages";
+import { useConversationApi } from "./hooks/useConversationApi";
+import { useConversationMembers } from "./hooks/useConversationMembers";
+import { useConversations } from "./hooks/useConversations";
+import { useConversationWs } from "./hooks/useConversationWs";
+import { useMeetCall } from "./hooks/useMeetCall";
+import { useReadReceipts } from "./hooks/useReadReceipts";
+import type { CallType, Conversation, WsServerMessage } from "./types";
 
 interface MeetDrawerProps {
   Trigger?: React.ReactNode;
@@ -35,385 +41,527 @@ interface MeetDrawerProps {
 }
 
 const MeetDrawer: FC<MeetDrawerProps> = ({
-                                           Trigger,
-                                           open: controlledOpen,
-                                           onOpenChange,
-                                         }) => {
+  Trigger,
+  open: controlledOpen,
+  onOpenChange,
+}) => {
   const t = useTranslations("meet");
+  const { user } = useUser();
+
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeConversation, setActiveConversation] =
-      useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>(DEMO_MESSAGES);
-
-  const conversations = DEMO_CONVERSATIONS;
-  // const conversations = []
-  const connectionState: ConnectionState = "connected";
+    useState<Conversation | null>(null);
+  const [showCallView, setShowCallView] = useState(false);
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = onOpenChange ?? setInternalOpen;
 
-  const handleCall = (conversation: Conversation) => {
-    // Placeholder - integrate with actual call logic
-  };
+  // Track active conversation ID for WS message filtering
+  const activeConvIdRef = useRef<string | null>(null);
+  activeConvIdRef.current = activeConversation?.id ?? null;
+  const processedEventKeysRef = useRef<Map<string, number>>(new Map());
+  const DEDUP_MS = 30_000;
 
-  const handleStartNewCall = () => {
-    // Placeholder - integrate with actual call creation flow
-  };
-
-  const handleOpenChat = (conversation: Conversation) => {
-    setActiveConversation(conversation);
-  };
-
-  const handleBackToList = () => {
-    setActiveConversation(null);
-  };
-
-  const handleSendMessage = (text: string) => {
-    const newMsg: ChatMessage = {
-      id: `m${Date.now()}`,
-      text,
-      senderId: "current",
-      senderName: "You",
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status: "sent",
-      isCurrentUser: true,
+  useEffect(() => {
+    return () => {
+      processedEventKeysRef.current.clear();
     };
-    setMessages(prev => [...prev, newMsg]);
-  };
+  }, []);
 
-  const handleTitleEdit = (newTitle: string) => {
-    if (activeConversation) {
-      setActiveConversation({ ...activeConversation, title: newTitle });
-    }
-  };
+  // ─── API ────────────────────────────────────────────────
+  const conversationApi = useConversationApi();
 
-  const onInviteUser = (userId: string) => {
-    /* send invitation */
-  };
+  // ─── Conversations ──────────────────────────────────────
+  const {
+    conversations,
+    isLoading: isLoadingConversations,
+    handleWsMessage: handleConversationsWs,
+    updateConversation,
+    removeConversation,
+  } = useConversations();
 
-  const onSendEmailInvite = (email: string) => {
-    /* send email invite */
-  };
-
-  const onRemoveParticipant = (id: string) => {
-    /* kick user */
-  };
-
-  const onOpenChat = () => {
-    setIsOpen(true);
-    setActiveConversation(conversations[0]);
-  };
-
-  const onCallMember = (memberId: string) => {
-    /* initiate call with specific member */
-  };
-
-  const onMuteToggle = () => {
-    if (activeConversation) {
-      setActiveConversation({
-        ...activeConversation,
-        isMuted: !activeConversation.isMuted,
-      });
-    }
-  };
-
-  const defaultTrigger = (
-      <DynamicButton
-          icon={sharedIcons.call}
-          title="Meet"
-          variant="outline"
-          hideLabel
-      />
+  // ─── Members for active conversation ───────────────────
+  const { allMembers: apiMembers, mentionMembers } = useConversationMembers(
+    activeConversation?.id ?? null,
   );
 
-  const [showSchedule, setShowSchedule] = useState(false);
+  // ─── Call ───────────────────────────────────────────────
+  const meetCall = useMeetCall({
+    onCallAccepted: () => {
+      setShowCallView(true);
+    },
+  });
 
-  //test
-  const [showCallView, setShowCallView] = useState(false);
+  // ─── WebSocket connection (declared early, handler uses refs) ──
+  const chatMessagesRef = useRef<ReturnType<typeof useChatMessages>>(null!);
+  const readReceiptsRef = useRef<ReturnType<typeof useReadReceipts>>(null!);
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
+
+  // ─── WS handler that dispatches to all sub-hooks ───────
+  const handleWsMessage = useCallback(
+    (message: WsServerMessage) => {
+      // Top-level dedupe for conversation:event messages
+      if (message.type === "conversation:event") {
+        const convEvent = message as any;
+        const ev = convEvent.event ?? {};
+        const sessionId =
+          ev.payload?.payload?.sessionId ?? ev.payload?.sessionId ?? undefined;
+        const eventId = ev.id ?? convEvent.eventId ?? undefined;
+
+        let key = "evt:";
+        if (sessionId) key = `session:${sessionId}`;
+        else if (eventId) key = `id:${eventId}`;
+        else
+          key = `type:${ev.type ?? ev.subtype ?? "unknown"}:conv:${convEvent.conversationId ?? "global"}`;
+
+        const now = Date.now();
+        const last = processedEventKeysRef.current.get(key);
+        if (last && now - last < DEDUP_MS) {
+          console.debug("Skipping duplicate top-level WS event", key);
+          return;
+        }
+        processedEventKeysRef.current.set(key, now);
+
+        // Prune old entries
+        processedEventKeysRef.current.forEach((ts, k) => {
+          if (now - ts > DEDUP_MS * 2) processedEventKeysRef.current.delete(k);
+        });
+      }
+
+      // Dispatch to sub-handlers (unchanged)
+      handleConversationsWs(message);
+      meetCall.handleWsMessage(message);
+      chatMessagesRef.current?.handleWsMessage(message);
+      readReceiptsRef.current?.handleWsMessage(message);
+
+      // Handle message notifications (only when not viewing that conversation)
+      if (message.type === "conversation:event") {
+        const convEvent = message as any;
+        const { event } = convEvent;
+
+        if (
+          event.type === "message" &&
+          event.senderUserId !== user?.id &&
+          convEvent.conversationId !== activeConvIdRef.current
+        ) {
+          showMessageNotification(
+            {
+              senderName: event.actor?.name ?? "Unknown",
+              senderAvatarUrl: event.actor?.profileImageUrl ?? undefined,
+              messagePreview: event.body ?? "",
+              conversationId: convEvent.conversationId,
+            },
+            convId => {
+              const conv = conversationsRef.current.find(c => c.id === convId);
+              if (conv) {
+                setActiveConversation(conv);
+                setIsOpen(true);
+              }
+            },
+          );
+        }
+
+        // Handle incoming reactions from other users (custom WS event)
+        if (event.type === "activity" && event.subtype === "reaction") {
+          // This would be handled by CallView's reaction display
+        }
+      }
+    },
+    [handleConversationsWs, meetCall, user?.id, setIsOpen],
+  );
+
+  // ─── WebSocket connection ──────────────────────────────
+  const conversationWs = useConversationWs({
+    enabled: true,
+    onMessage: handleWsMessage,
+  });
+
+  const connectionState =
+    conversationWs.connectionState === "connected"
+      ? ("connected" as const)
+      : conversationWs.connectionState === "connecting"
+        ? ("connecting" as const)
+        : ("disconnected" as const);
+
+  // ─── Chat messages ─────────────────────────────────────
+  const chatMessages = useChatMessages({
+    conversationId: activeConversation?.id ?? null,
+    wsSendMessage: conversationWs.sendMessage,
+  });
+  chatMessagesRef.current = chatMessages;
+
+  // ─── Read receipts ────────────────────────────────────
+  readReceiptsRef.current = useReadReceipts({
+    conversationId: activeConversation?.id ?? null,
+    wsMarkRead: conversationWs.markRead,
+  });
+
+  // ─── Handlers ─────────────────────────────────────────
+
+  const handleOpenChat = useCallback(
+    (conversation: Conversation) => {
+      setActiveConversation(conversation);
+      // Reset unseen count when opening
+      updateConversation(conversation.id, { unseenCount: 0 });
+    },
+    [updateConversation],
+  );
+
+  const handleBackToList = useCallback(() => {
+    setActiveConversation(null);
+    chatMessages.clear();
+  }, [chatMessages]);
+
+  const handleSendMessage = useCallback(
+    (text: string, replyToId?: string) => {
+      chatMessages.sendMessage(text, replyToId);
+    },
+    [chatMessages],
+  );
+
+  const handleEditMessage = useCallback(
+    (eventId: string, newText: string) => {
+      void chatMessages.editMessage(eventId, newText);
+    },
+    [chatMessages],
+  );
+
+  const handleDeleteMessage = useCallback(
+    (eventId: string) => {
+      void chatMessages.deleteMessage(eventId);
+    },
+    [chatMessages],
+  );
+
+  const handleTitleEdit = useCallback(
+    (newTitle: string) => {
+      if (activeConversation) {
+        setActiveConversation(prev =>
+          prev ? { ...prev, title: newTitle } : null,
+        );
+        updateConversation(activeConversation.id, { title: newTitle });
+      }
+    },
+    [activeConversation, updateConversation],
+  );
+
+  const handleMuteToggle = useCallback(() => {
+    if (activeConversation) {
+      const newMuted = !activeConversation.isMuted;
+      setActiveConversation(prev =>
+        prev ? { ...prev, isMuted: newMuted } : null,
+      );
+      updateConversation(activeConversation.id, { isMuted: newMuted });
+    }
+  }, [activeConversation, updateConversation]);
+
+  // Start call from StartCall page (no conversation_id)
+  const handleStartCall = useCallback(
+    async (callType?: CallType) => {
+      const session = await meetCall.startCall(undefined, callType);
+      if (session) {
+        setShowCallView(true);
+      }
+      return session;
+    },
+    [meetCall],
+  );
+
+  // Join call from StartCall page
+  const handleJoinCall = useCallback(
+    async (sessionId: string, callType?: CallType) => {
+      await meetCall.joinCall(sessionId, callType);
+      setShowCallView(true);
+    },
+    [meetCall],
+  );
+
+  // Start audio call from a conversation card
+  const handleConversationAudioCall = useCallback(
+    (conversation: Conversation) => {
+      meetCall.startCall(conversation.id, "audio").then(session => {
+        if (session) {
+          setShowCallView(true);
+          // Add all members as pending for conversation calls
+          apiMembers.forEach(m => {
+            if (m.id !== String(user?.id)) {
+              meetCall.addPending({
+                userId: Number(m.id),
+                name: m.name,
+                profileImageUrl: m.avatarUrl,
+                addedAt: Date.now(),
+              });
+            }
+          });
+        }
+      });
+    },
+    [meetCall, apiMembers, user?.id],
+  );
+
+  // Start video call from a conversation card
+  const handleConversationVideoCall = useCallback(
+    (conversation: Conversation) => {
+      meetCall.startCall(conversation.id, "video").then(session => {
+        if (session) {
+          setShowCallView(true);
+          apiMembers.forEach(m => {
+            if (m.id !== String(user?.id)) {
+              meetCall.addPending({
+                userId: Number(m.id),
+                name: m.name,
+                profileImageUrl: m.avatarUrl,
+                addedAt: Date.now(),
+              });
+            }
+          });
+        }
+      });
+    },
+    [meetCall, apiMembers, user?.id],
+  );
+
+  // Audio call from inside chat
+  const handleChatAudioCall = useCallback(() => {
+    if (activeConversation) handleConversationAudioCall(activeConversation);
+  }, [activeConversation, handleConversationAudioCall]);
+
+  // Video call from inside chat
+  const handleChatVideoCall = useCallback(() => {
+    if (activeConversation) handleConversationVideoCall(activeConversation);
+  }, [activeConversation, handleConversationVideoCall]);
+
+  // Start New Call from header (no conversation)
+  const handleStartNewCall = useCallback(() => {
+    meetCall.startCall(undefined, "video").then(session => {
+      if (session) setShowCallView(true);
+    });
+  }, [meetCall]);
+
+  const handleEndCall = useCallback(async () => {
+    await meetCall.endCall();
+    setShowCallView(false);
+  }, [meetCall]);
+
+  const onOpenChatFromCall = useCallback(() => {
+    setIsOpen(true);
+    if (conversations.length > 0) {
+      setActiveConversation(conversations[0]);
+    }
+  }, [setIsOpen, conversations]);
+
+  // ─── Leave / Delete handlers ──────────────────────────
+  const handleLeaveConversation = useCallback(
+    async (conversation: Conversation) => {
+      const success = await conversationApi.leaveConversation(conversation.id);
+      if (success) {
+        removeConversation(conversation.id);
+        if (activeConversation?.id === conversation.id) {
+          setActiveConversation(null);
+          chatMessages.clear();
+        }
+      }
+    },
+    [conversationApi, removeConversation, activeConversation, chatMessages],
+  );
+
+  const handleDeleteForEveryone = useCallback(
+    async (conversation: Conversation) => {
+      const success = await conversationApi.deleteConversation(conversation.id);
+      if (success) {
+        removeConversation(conversation.id);
+        if (activeConversation?.id === conversation.id) {
+          setActiveConversation(null);
+          chatMessages.clear();
+        }
+      }
+    },
+    [conversationApi, removeConversation, activeConversation, chatMessages],
+  );
+
+  // Mute from card popup
+  const handleMuteConversation = useCallback(
+    (conversation: Conversation) => {
+      const newMuted = !conversation.isMuted;
+      updateConversation(conversation.id, { isMuted: newMuted });
+    },
+    [updateConversation],
+  );
+
+  // ─── Build CallView props ─────────────────────────────
+
+  const owner: CallOwner = useMemo(
+    () => ({
+      id: String(user?.id ?? "me"),
+      name: user
+        ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+          user.username ||
+          "Me"
+        : "Me",
+      avatarUrl: user?.profile_image_url ?? undefined,
+    }),
+    [user],
+  );
+
+  const room: CallRoom = useMemo(
+    () => ({
+      id: meetCall.activeSession?.id ?? "",
+      link: meetCall.activeSession
+        ? `${window.location.origin}?call_session=${meetCall.activeSession.id}`
+        : "",
+    }),
+    [meetCall.activeSession],
+  );
+
+  // Dynamic call title
+  const callTitle = useMemo(() => {
+    if (meetCall.activeConversationId) {
+      const conv = conversations.find(
+        c => c.id === meetCall.activeConversationId,
+      );
+      if (conv?.title) return `${conv.title} - Meet`;
+    }
+    return "Pencilly Meet";
+  }, [meetCall.activeConversationId, conversations]);
+
+
+
+  const appLayoutMain =
+    typeof document !== "undefined"
+      ? document.getElementById("app-layout-main")
+      : null;
+
+  const defaultTrigger = (
+    <DynamicButton
+      icon={sharedIcons.call}
+      title="Meet"
+      variant="outline"
+      hideLabel
+    />
+  );
 
   return (
     <>
+      {/* Call View (portal into main layout) */}
       {showCallView &&
+        appLayoutMain &&
         createPortal(
           <CallView
-            participants={participants}
+            participants={meetCall.participants}
             owner={owner}
             room={room}
-            startTime={Date.now()} // when call started
-            isSidebarOpen={isOpen} // true if MeetDrawer is open
-            onOpenChat={onOpenChat} // open chat with first conversation as example
-            onEndCall={() => setShowCallView(false)}
+            title={callTitle}
+            startTime={Date.now()}
+            isSidebarOpen={isOpen}
+            isMicMuted={meetCall.liveKitAPI.micMuted}
+            isCameraMuted={meetCall.liveKitAPI.cameraMuted}
+            isScreenSharing={meetCall.liveKitAPI.isScreenSharing}
+            onToggleMic={meetCall.liveKitAPI.toggleMic}
+            onToggleCamera={meetCall.liveKitAPI.toggleCamera}
+            onToggleScreenShare={() => {
+              if (meetCall.liveKitAPI.isScreenSharing) {
+                meetCall.liveKitAPI.stopScreenShare();
+              } else {
+                void meetCall.liveKitAPI.startScreenShare();
+              }
+            }}
+            onReaction={emoji => {
+              console.log(emoji)
+              // Reactions are shown locally by CallView, no custom WS needed yet
+            }}
+            onOpenChat={onOpenChatFromCall}
+            onEndCall={handleEndCall}
             onClose={() => setShowCallView(false)}
-            onInviteUser={onInviteUser}
-            onSendEmailInvite={onSendEmailInvite}
-            onRemoveParticipant={onRemoveParticipant}
+            isOpenSidebar={isOpen}
           />,
-          document.getElementById("app-layout-main"),
+          appLayoutMain,
         )}
+
+
       <AppDrawer
         open={isOpen}
         setOpen={setIsOpen}
         title="Call"
         Trigger={Trigger ?? defaultTrigger}
-        // needsAuth
         contentClassName="overflow-x-hidden"
         modal={false}
       >
+        {/* Header bar */}
         <div className="spacing-row gap-2 px-3 py-2 border-y">
-
           <RenderIf isTrue={!activeConversation && !isEmpty(conversations)}>
             <DynamicButton
               icon="hugeicons:call-add"
               title={t("new_call")}
               variant="default"
               className="!h-7 !text-xs"
-              onClick={() => {
-                //   start call
-                //test
-                showIncomingCall(callData, () => setShowCallView(true));
-                // showMessageNotification(messageData)
-              }}
+              onClick={handleStartNewCall}
             />
-            <StatusBadge className="ms-auto" status={connectionState} />
           </RenderIf>
+          <StatusBadge className="ms-auto" status={connectionState} />
         </div>
+
         <Show>
-          <Show.When isTrue={isEmpty(conversations)}>
+          {/* No conversations: show StartCall */}
+          <Show.When isTrue={isEmpty(conversations) && !isLoadingConversations}>
             <StartCall
-              //@ts-ignore
-              handleStartCall={() => {}}
-              //@ts-ignore
-              getSession={() => {}}
-              //@ts-ignore
-              handleJoin={() => {}}
-              connectionState="connecting"
+              handleStartCall={handleStartCall}
+              getSession={meetCall.streamSessionAPI.getSession}
+              handleJoin={handleJoinCall}
+              connectionState={connectionState}
             />
           </Show.When>
+
+          {/* Active conversation: show Chat */}
           <Show.When isTrue={!!activeConversation}>
             <Chat
-              conversation={activeConversation}
-              messages={messages}
-              typingUsers={["Ahmad Reza"]}
+              conversation={activeConversation!}
+              messages={chatMessages.messages}
+              typingUsers={[]}
               onBack={handleBackToList}
               onSendMessage={handleSendMessage}
-              onCall={() => handleCall(activeConversation)}
-              onDeleteMember={() => {}}
-              onVideoCall={() => {}}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onCall={handleChatAudioCall}
+              onVideoCall={handleChatVideoCall}
               onTitleEdit={handleTitleEdit}
+              onDeleteMember={() => {}}
               className="flex-1 overflow-hidden"
-              isOwner={true}
-              isMuted={activeConversation?.isMuted}
-              onCallMember={onCallMember}
-              onMuteToggle={onMuteToggle}
+              onMuteToggle={handleMuteToggle}
+              onCallMember={() => {}}
+              isLoadingMessages={chatMessages.isLoading}
+              onLeaveGroup={() =>
+                activeConversation &&
+                handleLeaveConversation(activeConversation)
+              }
+              onDeleteForEveryone={() =>
+                activeConversation &&
+                handleDeleteForEveryone(activeConversation)
+              }
+              apiMembers={apiMembers}
+              mentionMembers={mentionMembers}
             />
           </Show.When>
+
+          {/* Conversation list */}
           <Show.Else>
             <ConversationPage
               conversations={conversations}
-              connectionState="connected"
-              onCall={handleCall}
+              isLoading={isLoadingConversations}
+              onCall={handleConversationAudioCall}
+              onVideoCall={handleConversationVideoCall}
               onOpenChat={handleOpenChat}
+              onLeave={handleLeaveConversation}
+              onDelete={handleDeleteForEveryone}
+              onMute={handleMuteConversation}
               className="flex-1 overflow-x-hidden"
             />
           </Show.Else>
         </Show>
-        <div className="w-full p-2 bg flex">
-        <ScheduleDrawer
-          open={showSchedule}
-          onOpenChange={setShowSchedule}
-          connectionState={connectionState}
-        />
-        </div>
+
       </AppDrawer>
     </>
   );
 };
 
 export default MeetDrawer;
-
-/** Example demo data to showcase ConversationCard and ConversationList usage. */
-const DEMO_CONVERSATIONS: Conversation[] = [
-  {
-    id: "1",
-    isGroup: true,
-    title: "Collaborate Group",
-    members: [
-      { id: "u1", name: "Ahmad Reza", avatarUrl: "" },
-      { id: "u2", name: "Ali Reza", avatarUrl: "" },
-      { id: "u3", name: "Fati", avatarUrl: "" },
-    ],
-    lastMessage: {
-      text: "What's Man!",
-      senderName: "You",
-      timestamp: "9:40 AM",
-    },
-  },
-  {
-    id: "2",
-    isGroup: false,
-    members: [{ id: "u1", name: "Ahmad Reza", avatarUrl: "" }],
-    lastMessage: {
-      text: "What's Man!",
-      senderName: "You",
-      timestamp: "9:40 AM",
-    },
-  },
-  {
-    id: "3",
-    isGroup: false,
-    members: [{ id: "u2", name: "Ali Reza", avatarUrl: "" }],
-    unseenCount: 8,
-    isOnline: true,
-  },
-  {
-    id: "4",
-    isGroup: false,
-    members: [{ id: "u4", name: "Fati", avatarUrl: "" }],
-  },
-  {
-    id: "5",
-    isGroup: false,
-    members: [{ id: "u5", name: "Ali", avatarUrl: "" }],
-  },
-  {
-    id: "6",
-    isGroup: false,
-    members: [{ id: "u6", name: "Heli", avatarUrl: "" }],
-  },
-  {
-    id: "7",
-    isGroup: true,
-    members: [
-      { id: "u1", name: "Ahmad Reza" },
-      { id: "u2", name: "Ali Reza" },
-      { id: "u4", name: "Fati" },
-      { id: "u5", name: "Ali" },
-    ],
-    lastMessage: {
-      text: "See you tomorrow!",
-      senderName: "Ali",
-      timestamp: "8:15 AM",
-    },
-    unseenCount: 3,
-  },
-];
-
-/** Demo chat messages to showcase the ChatView component */
-const DEMO_MESSAGES: ChatMessage[] = [
-  {
-    id: "m1",
-    text: "Did You Finish Checking The Document?",
-    senderId: "current",
-    senderName: "You",
-    timestamp: "Yesterday",
-    status: "read",
-    isCurrentUser: true,
-  },
-  {
-    id: "m2",
-    text: "I Will Review The Full Document Tonight And Send You A Clear Summary With All Required Changes Today",
-    senderId: "u1",
-    senderName: "Ahmad Reza",
-    senderAvatarUrl: "",
-    timestamp: "12.00",
-    isCurrentUser: false,
-  },
-  {
-    id: "m3",
-    text: "Hey @ai can you summarize the doc for us?",
-    senderId: "current",
-    senderName: "You",
-    timestamp: "12.05",
-    status: "delivered",
-    isCurrentUser: true,
-  },
-];
-
-const messageData: MessageNotificationData = {
-  senderName: "Ahmad Reza",
-  senderAvatarUrl: "/avatars/ahmad.jpg", // optional
-  messagePreview: "Pizza Ipsum Dolor Meat Lovers ...",
-  conversationId: "conv-123", // optional, for navigation
-};
-
-const callData: CallNotificationData = {
-  callerName: "Ahmad Reza",
-  callerAvatarUrl: "/avatars/ahmad.jpg", // optional
-  callType: "voice", // or "video"
-};
-
-const participants: CallParticipant[] = [
-  {
-    id: "me",
-    name: "Seyed Habib Sadat",
-    avatarUrl: "/avatars/me.jpg",
-    isLocal: true,
-    isMuted: false,
-    isCameraOff: false,
-    isSpeaking: false,
-    videoTrack: null, // MediaStreamTrack or null
-    screenTrack: null,
-    reaction: null,
-  },
-  {
-    id: "user-2",
-    name: "Ali Reza Hosseini",
-    avatarUrl: "/avatars/ali.jpg",
-    isLocal: false,
-    isMuted: false,
-    isCameraOff: false,
-    isSpeaking: true,
-    videoTrack: null,
-    screenTrack: null,
-    reaction: null,
-  },
-  {
-    id: "user-3",
-    name: "Fati",
-    avatarUrl: "/avatars/fati.jpg",
-    isLocal: false,
-    isMuted: true,
-    isCameraOff: true,
-    isSpeaking: false,
-    videoTrack: null,
-    screenTrack: null,
-    reaction: null,
-  },
-  {
-    id: "user-4",
-    name: "Sara",
-    avatarUrl: "/avatars/sara.jpg",
-    isLocal: false,
-    isMuted: false,
-    isCameraOff: true,
-    isSpeaking: false,
-    videoTrack: null,
-    screenTrack: null,
-    reaction: null,
-  },
-  {
-    id: "user-5",
-    name: "Ali",
-    avatarUrl: "/avatars/ali2.jpg",
-    isLocal: false,
-    isMuted: true,
-    isCameraOff: false,
-    isSpeaking: false,
-    videoTrack: null,
-    screenTrack: null,
-    reaction: null,
-  },
-];
-
-const owner: CallOwner = {
-  id: "me",
-  name: "Seyed Habib Sadat",
-  avatarUrl: "/avatars/me.jpg",
-};
-const room: CallRoom = {
-  id: "room-123",
-  link: "https://app.pencilly.com/meet/room-123",
-};

@@ -28,21 +28,25 @@ const ChatHeader: FC<ChatHeaderProps> = ({
   className,
 }) => {
   const t = useTranslations("meet.chat");
-  const { isGroup, title, members } = conversation;
+  const { isGroup = false, title, members = [] } = conversation;
 
   const displayTitle = useMemo(() => {
     if (title) return title;
 
-    if (!isGroup) return members[0]?.name ?? "Unknown";
+    if (!isGroup && members.length > 0) return members[0]?.name ?? "Unknown";
 
-    // For groups without a title: show first 1-3 names + remaining count
-    const maxVisible = Math.min(members.length, 3);
-    const visibleNames = members.slice(0, maxVisible).map(m => m.name);
-    const remaining = members.length - maxVisible;
+    if (members.length > 0) {
+      // For groups without a title: show first 1-3 names + remaining count
+      const maxVisible = Math.min(members.length, 3);
+      const visibleNames = members.slice(0, maxVisible).map(m => m.name);
+      const remaining = members.length - maxVisible;
 
-    return remaining > 0
-      ? `${visibleNames.join(", ")} +${remaining}`
-      : visibleNames.join(", ");
+      return remaining > 0
+        ? `${visibleNames.join(", ")} +${remaining}`
+        : visibleNames.join(", ");
+    }
+
+    return "Conversation";
   }, [title, isGroup, members]);
 
   return (

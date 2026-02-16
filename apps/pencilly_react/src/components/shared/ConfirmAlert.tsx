@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useTranslations } from "@/i18n";
+import {cn} from "@/lib/utils";
 
 interface IProps {
   onAccept?: () => void | Promise<void | unknown>;
@@ -23,6 +24,7 @@ interface IProps {
   setOpen?: (val: boolean) => void;
   Action?: React.ReactNode;
   isDanger?: boolean;
+  contentClassName?: string;
 }
 
 function ConfirmAlert({
@@ -37,6 +39,7 @@ function ConfirmAlert({
   setOpen,
   Action,
   isDanger,
+    contentClassName
 }: PropsWithChildren<IProps>) {
   const t = useTranslations("shared");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,11 +55,14 @@ function ConfirmAlert({
   return (
     <Dialog open={isOpn} onOpenChange={setIsOpn}>
       <RenderIf isTrue={!!children}>
-        <DialogTrigger className={"w-full " + className} asChild>
+        <DialogTrigger onClick={() => setIsOpn(!isOpn)} className={"w-full " + className} asChild>
           <span>{children}</span>
         </DialogTrigger>
       </RenderIf>
-      <DialogContent className="col max-h-dvh max-w-md  bg-popover p-6">
+      <DialogContent className={cn(
+          "col max-h-dvh max-w-md  bg-popover p-6",
+          contentClassName
+      )}>
         <DialogHeader className="mb-0">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

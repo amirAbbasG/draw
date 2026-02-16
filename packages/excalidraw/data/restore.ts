@@ -731,7 +731,7 @@ export const restoreAppState = (
     },
     openSidebar:
       // string (legacy)
-      typeof (appState.openSidebar as any as string) === "string"
+      typeof (appState?.openSidebar as any as string) === "string"
         ? { name: DEFAULT_SIDEBAR.name }
         : nextAppState.openSidebar,
     gridSize: getNormalizedGridSize(

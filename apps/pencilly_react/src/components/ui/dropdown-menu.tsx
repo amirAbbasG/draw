@@ -1,17 +1,9 @@
 import * as React from "react";
 
-
-
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-
-
 
 import AppIcon from "@/components/ui/custom/app-icon";
 import { cn } from "@/lib/utils";
-
-
-
-
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
@@ -28,38 +20,38 @@ const DropdownMenuContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
     portal?: boolean;
     container?: Element;
-}
->(({ className, sideOffset = 4, portal= true, container, ...props }, ref) => {
-    const Wrapper = ({ children }: PropsWithChildren) => {
-        if (!portal) return children;
-        return (
-          <DropdownMenuPrimitive.Portal container={container}>
-            {children}
-          </DropdownMenuPrimitive.Portal>
-        );
-    };
-
+  }
+>(({ className, sideOffset = 4, portal = true, container, ...props }, ref) => {
+  const Wrapper = ({ children }: PropsWithChildren) => {
+    if (!portal) return children;
     return (
-        <Wrapper>
-            <DropdownMenuPrimitive.Content
-                ref={ref}
-                sideOffset={sideOffset}
-                className={cn(
-                    "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-                    className,
-                )}
-                {...props}
-            />
-        </Wrapper>
-    )
+      <DropdownMenuPrimitive.Portal container={container}>
+        {children}
+      </DropdownMenuPrimitive.Portal>
+    );
+  };
+
+  return (
+    <Wrapper>
+      <DropdownMenuPrimitive.Content
+        ref={ref}
+        sideOffset={sideOffset}
+        className={cn(
+          "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          className,
+        )}
+        {...props}
+      />
+    </Wrapper>
+  );
 });
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const iconSizes = {
-    sm: "size-[14px]",
-    md: "size-[16px]",
-    lg: "size-[20px]",
-}
+  sm: "size-[14px]",
+  md: "size-[16px]",
+  lg: "size-[20px]",
+};
 
 const DropdownMenuItem = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Item>,
@@ -69,36 +61,40 @@ const DropdownMenuItem = React.forwardRef<
     selected?: boolean;
     iconSize?: "sm" | "md" | "lg";
   }
->(({ className, iconSize  = "md", inset, icon, children, selected, ...props }, ref) => (
-
+>(
+  (
+    { className, iconSize = "md", inset, icon, children, selected, ...props },
+    ref,
+  ) => (
     <DropdownMenuPrimitive.Item
-    ref={ref}
-    className={cn(
-      "relative flex cursor-pointer hover:bg-background select-none items-center rounded-sm text-sm !font-normal px-2 py-1.5 outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 row",
-      (inset || !!icon) && "pl-8",
-      selected && "border border-primary bg-primary-lighter pe-8",
-      className,
-    )}
-    {...props}
-  >
-    {icon && (
-      <AppIcon
-        icon={icon}
-        className={cn(
+      ref={ref}
+      className={cn(
+        "relative flex cursor-pointer hover:bg-background select-none items-center rounded-sm text-sm !font-normal px-2 py-1.5 outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 row",
+        (inset || !!icon) && "pl-8",
+        selected && "border border-primary bg-primary-lighter pe-8",
+        className,
+      )}
+      {...props}
+    >
+      {icon && (
+        <AppIcon
+          icon={icon}
+          className={cn(
             "absolute left-1.5 flex  top-1/2 -translate-y-1/2",
             iconSizes[iconSize],
-        )}
-      />
-    )}
-    {children}
-    {selected && (
-      <AppIcon
-        icon="material-symbols-light:check"
-        className="size-4 absolute right-1.5 flex top-1/2 -translate-y-1/2"
-      />
-    )}
-  </DropdownMenuPrimitive.Item>
-));
+          )}
+        />
+      )}
+      {children}
+      {selected && (
+        <AppIcon
+          icon="material-symbols-light:check"
+          className="size-4 absolute right-1.5 flex top-1/2 -translate-y-1/2"
+        />
+      )}
+    </DropdownMenuPrimitive.Item>
+  ),
+);
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 
 const DropdownMenuSubTrigger = React.forwardRef<

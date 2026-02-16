@@ -1,6 +1,6 @@
 import React, { FC } from "react";
 
-import type { Conversation } from "@/components/features/meet/types";
+import type { MeetUser } from "@/components/features/meet/types";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import AppIcon from "@/components/ui/custom/app-icon";
 import { sharedIcons } from "@/constants/icons";
@@ -8,7 +8,7 @@ import { sharedIcons } from "@/constants/icons";
 interface ConversationAvatarProps {
   isGroup: boolean;
   avatarUrl?: string;
-  members: Conversation["members"];
+  members?: MeetUser[];
 }
 
 export const ConversationAvatar: FC<ConversationAvatarProps> = ({
@@ -37,7 +37,7 @@ export const ConversationAvatar: FC<ConversationAvatarProps> = ({
     );
   }
 
-  const member = members[0];
+  const member = members?.[0];
   return (
     <UserAvatar
       imageSrc={member?.avatarUrl}

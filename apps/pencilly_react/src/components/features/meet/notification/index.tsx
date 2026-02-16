@@ -8,7 +8,7 @@ import CallNotificationToast, {
   CallNotificationData,
 } from "./CallNotificationToast";
 
-// Trigger an incoming call notification
+/** Trigger an incoming call notification */
 export function showIncomingCall(
   callData: CallNotificationData,
   onCallAccepted?: () => void,
@@ -20,21 +20,17 @@ export function showIncomingCall(
         data={callData}
         onAccept={() => {
           toast.dismiss(toastId);
-          // Navigate to call screen, join call, etc.
-          console.log("Call accepted!");
           onCallAccepted?.();
         }}
         onDecline={() => {
           toast.dismiss(toastId);
-          // Notify backend the call was declined
-          console.log("Call declined!");
           onCallDeclined?.();
         }}
       />
     ),
     {
       duration: 30000,
-      unstyled: true, // we use our own styling
+      unstyled: true,
       position: "top-right",
       onAutoClose: () => {
         onCallDeclined?.();
@@ -43,7 +39,11 @@ export function showIncomingCall(
   );
 }
 
-export function showMessageNotification(messageData: MessageNotificationData) {
+/** Trigger a new message notification (only when user is NOT in that conversation) */
+export function showMessageNotification(
+  messageData: MessageNotificationData,
+  onOpenConversation?: (conversationId: string) => void,
+) {
   toast.custom(
     toastId => (
       <MessageNotificationToast
@@ -53,13 +53,14 @@ export function showMessageNotification(messageData: MessageNotificationData) {
         }}
         onClick={() => {
           toast.dismiss(toastId);
-          // Navigate to the conversation
-          console.log("Opening conversation:", messageData.conversationId);
+          if (messageData.conversationId && onOpenConversation) {
+            onOpenConversation(messageData.conversationId);
+          }
         }}
       />
     ),
     {
-      duration: 10000, // component handles its own 10s timeout
+      duration: 10000,
       unstyled: true,
       position: "top-right",
     },

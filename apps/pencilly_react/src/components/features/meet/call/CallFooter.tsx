@@ -1,5 +1,6 @@
 import React, { useEffect, useState, type FC } from "react";
 
+import { formatElapsed } from "@/components/features/meet/utils";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
@@ -31,15 +32,7 @@ interface CallFooterProps {
   onEndCall: () => void;
   className?: string;
   onGridSettingsChange: (settings: GridSettings) => void;
-}
-
-function formatElapsed(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  isOpenSidebar?: boolean;
 }
 
 const CallFooter: FC<CallFooterProps> = ({
@@ -60,6 +53,7 @@ const CallFooter: FC<CallFooterProps> = ({
   className,
   gridSettings,
   onGridSettingsChange,
+  isOpenSidebar,
 }) => {
   const t = useTranslations("meet.call");
   const [elapsed, setElapsed] = useState(0);
@@ -82,12 +76,20 @@ const CallFooter: FC<CallFooterProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col lg:flex-row items-center justify-center lg:justify-between px-2 md:px-4 py-2 shrink-0 gap-2",
+        "flex flex-col  items-center justify-center px-2 md:px-4 py-2 shrink-0 gap-2",
+        isOpenSidebar
+          ? "2xl:flex-row  2xl::justify-between"
+          : "lg:flex-row  lg:justify-between",
         className,
       )}
     >
       {/* Left: Owner info + elapsed (hidden on small screens) */}
-      <div className="hidden lg:flex items-center gap-3 shrink-0 min-w-0">
+      <div
+        className={cn(
+          "hidden  items-center gap-3 shrink-0 min-w-0",
+          isOpenSidebar ? "2xl:flex" : "lg:flex",
+        )}
+      >
         <UserAvatar
           imageSrc={owner.avatarUrl}
           name={owner.name}
@@ -118,11 +120,25 @@ const CallFooter: FC<CallFooterProps> = ({
         onGridSettingsChange={onGridSettingsChange}
         gridSettings={gridSettings}
         onEndCall={onEndCall}
+        isOpenSidebar={isOpenSidebar}
       />
 
       {/* Right: Room link (hidden on small screens) */}
-      <div className="col lg:items-end gap-2 shrink-0 min-w-0 max-w-full lg:max-w-48">
-        <AppTypo variant="headingS" className="font-semibold max-lg:hidden">
+      <div
+        className={cn(
+          "col gap-2 shrink-0 min-w-0 max-w-full",
+          isOpenSidebar
+            ? "2xl:items-end  2xl::max-w-48"
+            : "lg:items-end  lg:max-w-48",
+        )}
+      >
+        <AppTypo
+          variant="headingS"
+          className={cn(
+            "font-semibold hidden",
+            isOpenSidebar ? "2xl:block" : "lg:block",
+          )}
+        >
           {t("room_link")}
         </AppTypo>
         <button

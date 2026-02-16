@@ -41,7 +41,7 @@
     --secondary-dark: oklch(0.50 0.18 240);
     --secondary-darker: oklch(0.35 0.20 240);
 
-    --danger-lighter: oklch(0.957 0.021 21);
+    --danger-lighter: oklch(0.958 0.021 21.172);
     --danger-light: oklch(0.71 0.167 26);
     --danger: oklch(0.556 0.185 29);
     --danger-dark: oklch(0.33 0.091 27);
@@ -210,6 +210,10 @@
     --chart-5: oklch(0.612 0.209 6);
 }
 
+button {
+    cursor: pointer;
+}
+
 @utility container-lg {
     @apply mx-auto flex w-full max-w-[1136px] flex-col gap-6;
 }
@@ -307,6 +311,22 @@
     background: #a8a8a8;
 }
 
+input[type="color"].square-color::-webkit-color-swatch-wrapper {
+    @apply rounded;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    @apply rounded border p-0;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    @apply rounded border-0 p-0;
+}
+
+input[type="color"].no-border::-webkit-color-swatch {
+    @apply border-0;
+}
+
 .text-gradiant {
     display: flex;
     align-items: baseline;
@@ -343,4 +363,16 @@
 
 .text-base {
     line-height: 1.25;
+}
+
+.animate-emoji-reaction {
+    animation: emoji-reaction 1s cubic-bezier(0,0,0.2,1);
+    animation-delay: 0.3s;
+    transform-origin: center;
+}
+
+@keyframes emoji-reaction  {
+    0%   { transform: scale(1) translateY(0); }
+    75%  { transform: scale(2) translateY(-2px);  }
+    100% { transform: scale(1) translateY(0); }
 }

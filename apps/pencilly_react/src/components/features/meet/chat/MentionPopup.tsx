@@ -9,8 +9,16 @@ import { sharedIcons } from "@/constants/icons";
 import type { MeetUser } from "../types";
 import {useTranslations} from "@/i18n";
 
+interface MentionMember {
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
 interface MentionPopupProps {
   members: MeetUser[];
+  /** Optional mention-specific members with username for @mention */
+  mentionMembers?: MentionMember[];
   filter?: string;
   onSelect: (mention: string) => void;
   onClose?: () => void;
@@ -23,16 +31,33 @@ interface MentionPopupProps {
  */
 const MentionPopup: FC<MentionPopupProps> = ({
   members,
+  mentionMembers,
   filter = "",
   onSelect,
   className,
 }) => {
     const t = useTranslations("meet.chat");
+
+  // If mentionMembers are provided, use those (username-based); otherwise fall back to MeetUser[]
+  const hasMentionMembers = mentionMembers && mentionMembers.length > 0;
+
+  const filteredMentionMembers = useMemo(() => {
+    if (!hasMentionMembers) return [];
+    const list = mentionMembers!;
+    if (!filter) return list;
+    const lower = filter.toLowerCase();
+    return list.filter(m =>
+      m.displayName.toLowerCase().includes(lower) ||
+      m.username.toLowerCase().includes(lower),
+    );
+  }, [mentionMembers, filter, hasMentionMembers]);
+
   const filteredMembers = useMemo(() => {
+    if (hasMentionMembers) return [];
     if (!filter) return members;
     const lower = filter.toLowerCase();
     return members.filter(m => m.name.toLowerCase().includes(lower));
-  }, [members, filter]);
+  }, [members, filter, hasMentionMembers]);
 
   const showAi = !filter || "ai".includes(filter.toLowerCase());
 
@@ -67,8 +92,31 @@ const MentionPopup: FC<MentionPopupProps> = ({
         </button>
       )}
 
-      {/* Member list */}
-      {filteredMembers.map(member => (
+      {/* Member list (username-based mentions) */}
+      {hasMentionMembers && filteredMentionMembers.map(member => (
+        <button
+          key={member.username}
+          type="button"
+          className="flex items-center gap-2.5 px-3 py-2 hover:bg-primary-lighter transition-colors text-start"
+          onMouseDown={e => {
+            e.preventDefault();
+            onSelect(member.username);
+          }}
+        >
+          <UserAvatar
+            imageSrc={member.avatarUrl}
+            name={member.displayName}
+            className="size-7 text-[10px]"
+          />
+          <div className="col min-w-0">
+            <AppTypo variant="small">{member.displayName}</AppTypo>
+            <AppTypo variant="xs" color="secondary">@{member.username}</AppTypo>
+          </div>
+        </button>
+      ))}
+
+      {/* Member list (fallback MeetUser-based) */}
+      {!hasMentionMembers && filteredMembers.map(member => (
         <button
           key={member.id}
           type="button"
@@ -88,7 +136,7 @@ const MentionPopup: FC<MentionPopupProps> = ({
       ))}
 
       {/* Empty state */}
-      {!showAi && filteredMembers.length === 0 && (
+      {!showAi && filteredMembers.length === 0 && filteredMentionMembers.length === 0 && (
         <div className="px-3 py-4 flex items-center justify-center">
           <AppTypo variant="xs" color="muted">
               {("no_match")}

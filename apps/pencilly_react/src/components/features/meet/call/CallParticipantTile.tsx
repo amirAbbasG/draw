@@ -4,12 +4,12 @@ import { UserAvatar } from "@/components/features/user/UserAvatar";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import AppTypo from "@/components/ui/custom/app-typo";
+import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
 import type { CallParticipant } from "./types";
-import {useIsTouchDevice} from "@/hooks/useIsTouchDevice";
 
 interface CallParticipantTileProps {
   participant: CallParticipant;
@@ -29,8 +29,7 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
 }) => {
   const t = useTranslations("meet.call");
   const videoRef = useRef<HTMLVideoElement>(null);
-  const isTouchDevice = useIsTouchDevice()
-
+  const isTouchDevice = useIsTouchDevice();
 
   const {
     id,
@@ -45,19 +44,33 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
     reaction,
   } = participant;
 
+  // useEffect(() => {
+  //   const videoElement = videoRef.current;
+  //   if (!videoElement || !videoTrack) return;
+  //
+  //   videoElement.srcObject = new MediaStream([videoTrack]);
+  //
+  //   // Ensure video playback starts
+  //   videoElement.play().catch(err => console.error("Play error:", err));
+  //
+  //   return () => {
+  //     if (videoElement) {
+  //       videoElement.srcObject = null;
+  //     }
+  //   };
+  // }, [videoTrack, isLocal]);
+
+  const track = videoTrack?.track;
+
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !videoTrack) return;
-    el.srcObject = new MediaStream([videoTrack]);
+    if (!el || !track) return;
+    el.srcObject = new MediaStream([track]);
     el.play().catch(() => {});
     return () => {
       if (el) el.srcObject = null;
     };
-  }, [videoTrack]);
-
-  const hasVideo = !!videoTrack && !isCameraOff;
-
-
+  }, [track]);
 
   return (
     <div
@@ -68,15 +81,19 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
       )}
     >
       {/* Video layer */}
-      {hasVideo ? (
+      {track && (
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted={isLocal}
-          className="absolute inset-0 h-full w-full object-cover"
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            videoTrack?.isMuted && "hidden",
+          )}
         />
-      ) : (
+      )}
+      {!!videoTrack?.isMuted && (
         <div className="absolute inset-0 flex items-center justify-center bg-foreground/10">
           <UserAvatar
             imageSrc={avatarUrl}
@@ -105,7 +122,9 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
         <div
           className={cn(
             "flex items-center gap-1 px-2 py-1 rounded-md max-w-[60%]",
-            hasVideo ? "bg-background/80 backdrop-blur-sm" : "",
+            !!track && !videoTrack?.isMuted
+              ? "bg-background/80 backdrop-blur-sm"
+              : "",
           )}
         >
           {isMuted && (

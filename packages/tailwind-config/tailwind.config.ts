@@ -88,6 +88,7 @@ module.exports = {
           dark: "var(--text-dark)",
           darker: "var(--text-darker)",
           icon: "var(--text-icon)",
+          "icon-light":  "var(--primary-foreground)",
         },
         background: {
           lighter: "var(--bg-lighter)",

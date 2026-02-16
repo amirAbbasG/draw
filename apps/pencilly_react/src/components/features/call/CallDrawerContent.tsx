@@ -20,8 +20,8 @@ import { CALL_SESSION_KEY } from "@/constants/keys";
 import { useTranslations } from "@/i18n";
 
 import { useCallChat } from "./hooks/useCallChat";
-import { useLiveKit } from "./hooks/useLiveKit";
-import { useStreamSession } from "./hooks/useStreamSession";
+import { useLiveKit } from "../meet/hooks/useLiveKit";
+import { useStreamSession } from "../meet/hooks/useStreamSession";
 
 interface CallDrawerContentProps {
   sessionId?: string;

@@ -27,6 +27,22 @@ interface CallViewProps {
   startTime: number;
   /** Whether the sidebar is open (adjusts layout) */
   isSidebarOpen?: boolean;
+  /** Dynamic title (e.g., "Conversation Title - Meet") */
+  title?: string;
+  /** Real mic muted state from LiveKit */
+  isMicMuted?: boolean;
+  /** Real camera muted state from LiveKit */
+  isCameraMuted?: boolean;
+  /** Real screen sharing state from LiveKit */
+  isScreenSharing?: boolean;
+  /** Toggle mic via LiveKit */
+  onToggleMic?: () => void;
+  /** Toggle camera via LiveKit */
+  onToggleCamera?: () => void;
+  /** Start/stop screen share via LiveKit */
+  onToggleScreenShare?: () => void;
+  /** Send a reaction (emoji/raise hand) */
+  onReaction?: (emoji: string) => void;
   /** Callback to toggle meet sidebar chat */
   onOpenChat?: () => void;
   /** Callback when call ends */
@@ -40,6 +56,7 @@ interface CallViewProps {
   /** Callback to remove a participant */
   onRemoveParticipant?: (id: string) => void;
   className?: string;
+  isOpenSidebar?: boolean;
 }
 
 const CallView: FC<CallViewProps> = ({
@@ -48,21 +65,25 @@ const CallView: FC<CallViewProps> = ({
   room,
   startTime,
   isSidebarOpen = false,
+  title,
+  isMicMuted: isMicMutedProp = false,
+  isCameraMuted: isCameraMutedProp = false,
+  isScreenSharing: isScreenSharingProp = false,
+  onToggleMic: onToggleMicProp,
+  onToggleCamera: onToggleCameraProp,
+  onToggleScreenShare: onToggleScreenShareProp,
+  onReaction: onReactionProp,
   onOpenChat,
   onEndCall,
   onClose,
-  onInviteUser,
-  onSendEmailInvite,
   onRemoveParticipant,
   className,
+    isOpenSidebar
 }) => {
   const isSmallScreen = useMediaQuery("(max-width: 640px)"); // sm breakpoint
 
   const [viewMode, setViewMode] = useState<CallViewMode>("maximized");
-  const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVolumeMuted, setIsVolumeMuted] = useState(false);
-  const [isCameraMuted, setIsCameraMuted] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [pinnedUserId, setPinnedUserId] = useState<string | null>(null);
   const [reactions, setReactions] = useState<Record<string, string | null>>({});
   const [gridSettings, setGridSettings] = useState<GridSettings>({
@@ -83,8 +104,8 @@ const CallView: FC<CallViewProps> = ({
   const participantsWithState: CallParticipant[] = participants.map(p => ({
     ...p,
     isPinned: p.id === pinnedUserId,
-    isCameraOff: p.isLocal ? isCameraMuted : p.isCameraOff,
-    isMuted: p.isLocal ? isMicMuted : p.isMuted,
+    isCameraOff: p.isLocal ? isCameraMutedProp : p.isCameraOff,
+    isMuted: p.isLocal ? isMicMutedProp : p.isMuted,
     reaction: reactions[p.id] ?? null,
   }));
 
@@ -102,12 +123,15 @@ const CallView: FC<CallViewProps> = ({
         clearTimeout(reactionTimeouts.current[owner.id]);
       }
 
-      // Auto-clear reaction after 3 seconds
+      // Auto-clear reaction after 3 seconds (not raise hand)
       reactionTimeouts.current[owner.id] = setTimeout(() => {
         setReactions(prev => ({ ...prev, [owner.id]: null }));
       }, 3000);
+
+      // Send reaction to other participants via WS
+      onReactionProp?.(emoji);
     },
-    [owner.id],
+    [owner.id, onReactionProp],
   );
 
   const handleMinimize = useCallback(() => {
@@ -134,10 +158,10 @@ const CallView: FC<CallViewProps> = ({
     return (
       <CallMinimized
         participant={speakingUser}
-        isMicMuted={isMicMuted}
-        isCameraMuted={isCameraMuted}
-        onToggleMic={() => setIsMicMuted(v => !v)}
-        onToggleCamera={() => setIsCameraMuted(v => !v)}
+        isMicMuted={isMicMutedProp}
+        isCameraMuted={isCameraMutedProp}
+        onToggleMic={() => onToggleMicProp?.()}
+        onToggleCamera={() => onToggleCameraProp?.()}
         onMaximize={handleMaximize}
         onClose={handleClose}
       />
@@ -148,7 +172,7 @@ const CallView: FC<CallViewProps> = ({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-100 flex bg-background-lighter",
+        "absolute inset-0 z-[100] flex bg-background-lighter",
         className,
       )}
     >
@@ -161,6 +185,7 @@ const CallView: FC<CallViewProps> = ({
       >
         {/* Header */}
         <CallHeader
+          title={title}
           onClose={handleClose}
           onMinimize={handleMinimize}
           className="relative"
@@ -183,14 +208,14 @@ const CallView: FC<CallViewProps> = ({
           owner={owner}
           room={room}
           startTime={startTime}
-          isMicMuted={isMicMuted}
+          isMicMuted={isMicMutedProp}
           isVolumeMuted={isVolumeMuted}
-          isCameraMuted={isCameraMuted}
-          isScreenSharing={isScreenSharing}
-          onToggleMic={() => setIsMicMuted(v => !v)}
+          isCameraMuted={isCameraMutedProp}
+          isScreenSharing={isScreenSharingProp}
+          onToggleMic={() => onToggleMicProp?.()}
           onToggleVolume={() => setIsVolumeMuted(v => !v)}
-          onToggleCamera={() => setIsCameraMuted(v => !v)}
-          onToggleScreenShare={() => setIsScreenSharing(v => !v)}
+          onToggleCamera={() => onToggleCameraProp?.()}
+          onToggleScreenShare={() => onToggleScreenShareProp?.()}
           gridSettings={gridSettings}
           onGridSettingsChange={setGridSettings}
           onReaction={handleReaction}
@@ -199,6 +224,7 @@ const CallView: FC<CallViewProps> = ({
             onEndCall?.();
             onClose?.();
           }}
+          isOpenSidebar={isOpenSidebar}
         />
       </div>
     </div>

@@ -8,6 +8,10 @@ export interface StreamSession {
     ws_url: string
     livekit_url: string
     room_name: string
+    conversation_id?: string
+    e2ee_key?: string,
+    is_public?: boolean
+    encrypted?: boolean
 }
 
 export interface TokenRequest {

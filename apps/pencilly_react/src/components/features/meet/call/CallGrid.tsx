@@ -39,6 +39,7 @@ const CallGrid: FC<CallGridProps> = ({
     [participants],
   );
 
+
   const screenVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {

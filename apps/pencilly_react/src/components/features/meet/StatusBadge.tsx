@@ -1,9 +1,10 @@
-import { ConnectionState } from "./types";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
+
+import { ConnectionState } from "./types";
 
 interface StatusBadgeProps {
   status: ConnectionState;
@@ -37,11 +38,7 @@ const statusConfig: Record<
   },
 };
 
- function StatusBadge({
-  status,
-  statusMessage,
-  className,
-}: StatusBadgeProps) {
+function StatusBadge({ status, statusMessage, className }: StatusBadgeProps) {
   const t = useTranslations("meet.status");
   const config = statusConfig[status];
 
@@ -68,4 +65,4 @@ const statusConfig: Record<
   );
 }
 
-export default StatusBadge
+export default StatusBadge;

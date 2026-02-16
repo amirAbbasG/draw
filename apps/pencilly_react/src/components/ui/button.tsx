@@ -21,7 +21,7 @@ const buttonVariants = cva(
         default: `bg-[var(--color)] dark:bg-[var(--light)] text-primary-foreground hover:bg-[var(--dark)] dark:hover:bg-[var(--color)] active:bg-[var(--darker)]
       selected:bg-[var(--lighter)] selected:text-[var(--color)]`,
 
-        outline: `text-foreground border border-separator hover:bg-primary-lighter hover:border-[var(--primary)] hover:text-[var(--darker)] active:bg-[var(--light)]
+        outline: `text-foreground border border-separator hover:bg-[var(--lighter)]/50 hover:border-[var(--color)] hover:text-[var(--darker)] active:bg-[var(--light)]
         selected:border-[var(--color)] selected:border selected:text-[var(--color)] selected:bg-[var(--lighter)]`,
 
         secondary: `bg-muted-light text-foreground hover:bg-muted-dark active:bg-muted active:text-foreground-lighter

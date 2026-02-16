@@ -1,5 +1,6 @@
 import React, { useRef, type FC } from "react";
 
+import ConversationDeleteAlert from "@/components/features/meet/conversation/ConversationDeleteAlert";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import RenderIf from "@/components/shared/RenderIf";
 import { Show } from "@/components/shared/Show";
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
-import type { Conversation } from "../types";
+import type { Conversation, MeetUser } from "../types";
 
 interface ChatInfoProps {
   conversation: Conversation;
@@ -21,12 +22,16 @@ interface ChatInfoProps {
   isMuted?: boolean;
   onSettings?: () => void;
   onLeaveGroup?: () => void;
+  /** Delete for everyone (owner only) */
+  onDeleteForEveryone?: () => void;
   onAvatarChange?: (file: File) => void;
   onNameChange?: (name: string) => void;
   onCallMember: (memberId: string) => void;
   onDeleteMember: (memberId: string) => void;
   className?: string;
   isGroup?: boolean;
+  /** Real members from API (overrides conversation.members) */
+  apiMembers?: MeetUser[];
 }
 
 const ChatInfo: FC<ChatInfoProps> = ({
@@ -38,18 +43,25 @@ const ChatInfo: FC<ChatInfoProps> = ({
   isMuted = false,
   onSettings,
   onLeaveGroup,
+  onDeleteForEveryone,
   onAvatarChange,
   onNameChange,
   onCallMember,
   className,
   onDeleteMember,
   isGroup,
+  apiMembers,
 }) => {
   const t = useTranslations("meet.chat.info");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { members, title, avatarUrl } = conversation;
 
-  const displayTitle = title || members.map(m => m.name).join(", ");
+  // Use API members if provided, otherwise fall back to conversation.members
+  const members = apiMembers ?? conversation.members ?? [];
+  const { title, avatarUrl } = conversation;
+
+  console.log(apiMembers);
+  const displayTitle =
+    title || members.map(m => m.name).join(", ") || "Conversation";
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -83,12 +95,11 @@ const ChatInfo: FC<ChatInfoProps> = ({
       <div className="flex-1 overflow-y-auto">
         {/* Avatar section */}
         <div className="centered-col p-4 gap-4">
-          {/* Group / User avatar with edit overlay */}
           <div className="relative">
             <UserAvatar
               imageSrc={avatarUrl}
               name={displayTitle}
-              className="!h-24 !w-24 "
+              className="!h-24 !w-24"
               backgroundColor="var(--bg-dark)"
             />
             <RenderIf isTrue={isGroup}>
@@ -99,7 +110,6 @@ const ChatInfo: FC<ChatInfoProps> = ({
                 onClick={handleAvatarClick}
                 className="absolute bottom-1 right-1"
               />
-
               <input
                 ref={fileInputRef}
                 type="file"
@@ -154,26 +164,32 @@ const ChatInfo: FC<ChatInfoProps> = ({
           />
 
           {/* Settings - owner only */}
-          <RenderIf isTrue={isGroup}>
-          {isOwner && (
+          <RenderIf isTrue={isOwner && isGroup}>
             <ActionButton
               icon={sharedIcons.settings}
               label={t("settings")}
               onClick={onSettings}
             />
-          )}
-
-            <ActionButton
-              icon={sharedIcons.logout}
-              label={t("leave")}
-              onClick={onLeaveGroup}
-            />
           </RenderIf>
+
+          {/* Leave / Delete with confirmation */}
+          <div>
+            <ConversationDeleteAlert
+              onLeaveGroup={onLeaveGroup}
+              onDeleteForEveryone={onDeleteForEveryone}
+              isOwner={isOwner}
+              isGroup={isGroup}
+              renderTrigger={label => (
+                <ActionButton icon={sharedIcons.logout} label={label} />
+              )}
+            />
+          </div>
         </div>
 
-        <RenderIf isTrue={isGroup}>
+        {/* Members list */}
+        <RenderIf isTrue={(isGroup ?? false) || members.length > 0}>
           <div className="py-2 bg-background-lighter">
-            <AppTypo variant="headingS" className=" px-2">
+            <AppTypo variant="headingS" className="px-2">
               {t("members")} ({members.length})
             </AppTypo>
 
@@ -196,7 +212,7 @@ const ChatInfo: FC<ChatInfoProps> = ({
                   </AppTypo>
                   <AppIconButton
                     icon={sharedIcons.call}
-                    size="sm"
+                    size="xs"
                     variant="outline"
                     title={t("call")}
                     onClick={() => onCallMember?.(member.id)}
@@ -204,7 +220,7 @@ const ChatInfo: FC<ChatInfoProps> = ({
                   {isOwner && (
                     <AppIconButton
                       icon={sharedIcons.delete}
-                      size="sm"
+                      size="xs"
                       variant="outline"
                       color="danger"
                       title={t("delete")}
@@ -237,7 +253,7 @@ const ActionButton: FC<ActionButtonProps> = ({ icon, label, onClick }) => (
     icon={icon}
     variant="fill"
     color="background"
-    className="h-11 w-[52px]"
+    className="h-11 w-[52px] shrink-0"
     title={label}
     onClick={onClick}
   />

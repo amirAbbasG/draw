@@ -1,11 +1,17 @@
 import { useEffect, useRef } from "react";
 
+
+
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
+
+
+
+
 
 interface VideoTileProps {
   track?: MediaStreamTrack;
@@ -32,6 +38,7 @@ export function VideoTile({
 }: VideoTileProps) {
   const t = useTranslations("call");
   const videoRef = useRef<HTMLVideoElement>(null);
+
 
 
   useEffect(() => {
