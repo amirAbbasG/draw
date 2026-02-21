@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState, type FC } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 
 import EditableDiv from "@/components/shared/EditableDiv";
 import EmojiPicker from "@/components/shared/EmojiPicker";
@@ -12,11 +18,11 @@ import { useTranslations } from "@/i18n";
 
 import type { ChatMessage, MeetUser } from "../types";
 import MentionPopup from "./MentionPopup";
+import {extractDecoratorsFromText} from "@/components/features/meet/utils";
+import {decorators} from "@/components/features/meet/constants";
 
 interface ChatInputProps {
   members: MeetUser[];
-  /** Username-based mention members for @mention autocomplete */
-  mentionMembers?: Array<{ username: string; displayName: string; avatarUrl?: string }>;
   onSend: (text: string, replyToId?: string) => void;
   /** Message being replied to */
   replyTo?: ChatMessage | null;
@@ -38,7 +44,6 @@ interface ChatInputProps {
  */
 const ChatInput: FC<ChatInputProps> = ({
   members,
-  mentionMembers,
   onSend,
   replyTo,
   editingMessage,
@@ -90,13 +95,18 @@ const ChatInput: FC<ChatInputProps> = ({
         else if (replyTo) onCancelReply?.();
         else if (editingMessage) onCancelEdit?.();
       }
+
+      if ((e.code === "Space" || e.key === "Enter") && mentionOpen) {
+        setMentionOpen(false);
+      }
+
     },
     [value, mentionOpen, replyTo, editingMessage],
   );
 
   const handleMentionSelect = useCallback(
     (mention: string) => {
-      const newValue = `${value}${value.endsWith("@") ? "" : "@"}${mention} `;
+      const newValue = `${value}${value.endsWith("@") ? "" : "@"}${mention} `.trim();
       setInitialValue(newValue);
       setMentionOpen(false);
     },
@@ -134,13 +144,24 @@ const ChatInput: FC<ChatInputProps> = ({
 
     setValue("");
     setInitialValue("");
+    setMentionOpen(false)
     if (divRef.current) {
       divRef.current.innerText = "";
     }
-  }, [value, onSend, replyTo, editingMessage, onEditSubmit, onCancelReply, onCancelEdit]);
+  }, [
+    value,
+    onSend,
+    replyTo,
+    editingMessage,
+    onEditSubmit,
+    onCancelReply,
+    onCancelEdit,
+  ]);
 
   const isReplying = !!replyTo;
   const isEditing = !!editingMessage;
+
+  const textDecorators = extractDecoratorsFromText(value, decorators);
 
   return (
     <div
@@ -152,13 +173,13 @@ const ChatInput: FC<ChatInputProps> = ({
       {/* Mention popup */}
       {mentionOpen && (
         <div className="absolute bottom-full left-2 right-2 mb-1 z-20">
-<MentionPopup
-  members={members}
-  mentionMembers={mentionMembers}
-  filter=""
-  onSelect={handleMentionSelect}
-  onClose={() => setMentionOpen(false)}
-  />
+          <MentionPopup
+              textDecorators={textDecorators.keys}
+            members={members?.filter(m => !m.isCurrentUser)}
+            filter=""
+            onSelect={handleMentionSelect}
+            onClose={() => setMentionOpen(false)}
+          />
         </div>
       )}
 
@@ -166,8 +187,11 @@ const ChatInput: FC<ChatInputProps> = ({
       {isReplying && (
         <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30">
           <div className="w-0.5 h-8 bg-primary rounded-full shrink-0" />
-          <div className="flex-1 min-w-0">
-            <AppTypo variant="xs" className="font-semibold text-primary truncate">
+          <div className="flex-1 min-w-0 col gap0.5">
+            <AppTypo
+              variant="xs"
+              className="font-semibold text-primary truncate"
+            >
               {t("replying_to")} {replyTo.actor?.name ?? "Unknown"}
             </AppTypo>
             <AppTypo variant="xs" color="secondary" className="truncate">
@@ -187,7 +211,10 @@ const ChatInput: FC<ChatInputProps> = ({
       {/* Edit mode bar */}
       {isEditing && (
         <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-warning/10">
-          <AppIcon icon="hugeicons:edit-02" className="size-3.5 text-warning shrink-0" />
+          <AppIcon
+            icon="hugeicons:edit-02"
+            className="size-3.5 text-warning shrink-0"
+          />
           <AppTypo variant="xs" className="font-semibold text-warning flex-1">
             {t("editing_message")}
           </AppTypo>
@@ -244,9 +271,10 @@ const ChatInput: FC<ChatInputProps> = ({
           size="sm"
           variant="fill"
           onClick={handleSend}
-          disabled={disabled || !value.trim()}
-          title={tChat("send_message")}
+          disabled={disabled || !value.trim() || textDecorators.count > 1}
+          title={tChat( textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
           className="rounded-full"
+
         />
       </div>
     </div>

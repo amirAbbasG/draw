@@ -10,19 +10,19 @@ import React, {
 import { createPortal } from "react-dom";
 
 import { CallView } from "@/components/features/meet/call";
-import { showMessageNotification } from "@/components/features/meet/notification";
 import StartCall from "@/components/features/meet/start";
 import StatusBadge from "@/components/features/meet/StatusBadge";
+import { createTemConversation } from "@/components/features/meet/utils";
 import AppDrawer from "@/components/shared/AppDrawer";
 import DynamicButton from "@/components/shared/DynamicButton";
 import RenderIf from "@/components/shared/RenderIf";
 import { Show } from "@/components/shared/Show";
 import { isEmpty } from "@/lib/utils";
-import { useUser } from "@/stores/context/user";
 import { sharedIcons } from "@/constants/icons";
+import { CALL_SESSION_KEY } from "@/constants/keys";
 import { useTranslations } from "@/i18n";
 
-import type { CallOwner, CallRoom } from "./call/types";
+import type { CallRoom } from "./call/types";
 import Chat from "./chat";
 import ConversationPage from "./conversation";
 import { useChatMessages } from "./hooks/useChatMessages";
@@ -32,7 +32,13 @@ import { useConversations } from "./hooks/useConversations";
 import { useConversationWs } from "./hooks/useConversationWs";
 import { useMeetCall } from "./hooks/useMeetCall";
 import { useReadReceipts } from "./hooks/useReadReceipts";
-import type { CallType, Conversation, WsServerMessage } from "./types";
+import type {
+  CallType,
+  Conversation,
+  ConversationEvent,
+  MeetUser,
+  WsServerMessage,
+} from "./types";
 
 interface MeetDrawerProps {
   Trigger?: React.ReactNode;
@@ -46,27 +52,14 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
   onOpenChange,
 }) => {
   const t = useTranslations("meet");
-  const { user } = useUser();
 
   const [internalOpen, setInternalOpen] = useState(false);
-  const [activeConversation, setActiveConversation] =
-    useState<Conversation | null>(null);
+  const [tempChat, setTempChat] = useState<Conversation | null>(null);
   const [showCallView, setShowCallView] = useState(false);
+  const [isConnectingCall, setIsConnectingCall] = useState(false);
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = onOpenChange ?? setInternalOpen;
-
-  // Track active conversation ID for WS message filtering
-  const activeConvIdRef = useRef<string | null>(null);
-  activeConvIdRef.current = activeConversation?.id ?? null;
-  const processedEventKeysRef = useRef<Map<string, number>>(new Map());
-  const DEDUP_MS = 30_000;
-
-  useEffect(() => {
-    return () => {
-      processedEventKeysRef.current.clear();
-    };
-  }, []);
 
   // ─── API ────────────────────────────────────────────────
   const conversationApi = useConversationApi();
@@ -78,12 +71,53 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     handleWsMessage: handleConversationsWs,
     updateConversation,
     removeConversation,
-  } = useConversations();
+    activeConversation,
+    setActiveConversation,
+    handleTitleEdit,
+    handleOpenChat,
+    setConversations,
+  } = useConversations(setIsOpen);
 
   // ─── Members for active conversation ───────────────────
-  const { allMembers: apiMembers, mentionMembers } = useConversationMembers(
-    activeConversation?.id ?? null,
-  );
+  const {
+    allMembers: apiMembers,
+    removeMember,
+    handleMembersMessageEvent,
+  } = useConversationMembers(activeConversation?.id ?? null);
+
+  const startChatWithUser = (user: MeetUser, me?: MeetUser) => {
+    const existConv = conversations.find(c => c.id === user.convesation_id);
+    if (existConv) {
+      setActiveConversation(existConv);
+      return;
+    }
+
+    const currentUser = me || apiMembers?.find(m => m.isCurrentUser)!;
+    const tempConv = createTemConversation(user, currentUser);
+    setTempChat(tempConv);
+    chatMessages.clear();
+    setActiveConversation(null);
+  };
+
+  useEffect(() => {
+    (async () => {
+      if (!activeConversation && !!tempChat) {
+        const usrIds = tempChat.members
+          .filter(m => !m.isCurrentUser)
+          .map(m => Number(m.id));
+        const data = await conversationApi.createConversation(
+          tempChat.title,
+          usrIds,
+        );
+        setActiveConversation(data);
+        setConversations(prev => [
+          data!,
+          ...prev.filter(c => c.id !== tempChat.id && c.id !== data.id),
+        ]);
+        setTempChat(null);
+      }
+    })();
+  }, [tempChat, activeConversation]);
 
   // ─── Call ───────────────────────────────────────────────
   const meetCall = useMeetCall({
@@ -95,80 +129,18 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
   // ─── WebSocket connection (declared early, handler uses refs) ──
   const chatMessagesRef = useRef<ReturnType<typeof useChatMessages>>(null!);
   const readReceiptsRef = useRef<ReturnType<typeof useReadReceipts>>(null!);
-  const conversationsRef = useRef(conversations);
-  conversationsRef.current = conversations;
 
   // ─── WS handler that dispatches to all sub-hooks ───────
   const handleWsMessage = useCallback(
     (message: WsServerMessage) => {
-      // Top-level dedupe for conversation:event messages
-      if (message.type === "conversation:event") {
-        const convEvent = message as any;
-        const ev = convEvent.event ?? {};
-        const sessionId =
-          ev.payload?.payload?.sessionId ?? ev.payload?.sessionId ?? undefined;
-        const eventId = ev.id ?? convEvent.eventId ?? undefined;
-
-        let key = "evt:";
-        if (sessionId) key = `session:${sessionId}`;
-        else if (eventId) key = `id:${eventId}`;
-        else
-          key = `type:${ev.type ?? ev.subtype ?? "unknown"}:conv:${convEvent.conversationId ?? "global"}`;
-
-        const now = Date.now();
-        const last = processedEventKeysRef.current.get(key);
-        if (last && now - last < DEDUP_MS) {
-          console.debug("Skipping duplicate top-level WS event", key);
-          return;
-        }
-        processedEventKeysRef.current.set(key, now);
-
-        // Prune old entries
-        processedEventKeysRef.current.forEach((ts, k) => {
-          if (now - ts > DEDUP_MS * 2) processedEventKeysRef.current.delete(k);
-        });
-      }
-
       // Dispatch to sub-handlers (unchanged)
       handleConversationsWs(message);
       meetCall.handleWsMessage(message);
+      handleMembersMessageEvent(message as ConversationEvent);
       chatMessagesRef.current?.handleWsMessage(message);
       readReceiptsRef.current?.handleWsMessage(message);
-
-      // Handle message notifications (only when not viewing that conversation)
-      if (message.type === "conversation:event") {
-        const convEvent = message as any;
-        const { event } = convEvent;
-
-        if (
-          event.type === "message" &&
-          event.senderUserId !== user?.id &&
-          convEvent.conversationId !== activeConvIdRef.current
-        ) {
-          showMessageNotification(
-            {
-              senderName: event.actor?.name ?? "Unknown",
-              senderAvatarUrl: event.actor?.profileImageUrl ?? undefined,
-              messagePreview: event.body ?? "",
-              conversationId: convEvent.conversationId,
-            },
-            convId => {
-              const conv = conversationsRef.current.find(c => c.id === convId);
-              if (conv) {
-                setActiveConversation(conv);
-                setIsOpen(true);
-              }
-            },
-          );
-        }
-
-        // Handle incoming reactions from other users (custom WS event)
-        if (event.type === "activity" && event.subtype === "reaction") {
-          // This would be handled by CallView's reaction display
-        }
-      }
     },
-    [handleConversationsWs, meetCall, user?.id, setIsOpen],
+    [handleConversationsWs, meetCall, handleMembersMessageEvent],
   );
 
   // ─── WebSocket connection ──────────────────────────────
@@ -199,67 +171,37 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
 
   // ─── Handlers ─────────────────────────────────────────
 
-  const handleOpenChat = useCallback(
-    (conversation: Conversation) => {
-      setActiveConversation(conversation);
-      // Reset unseen count when opening
-      updateConversation(conversation.id, { unseenCount: 0 });
-    },
-    [updateConversation],
-  );
-
   const handleBackToList = useCallback(() => {
     setActiveConversation(null);
     chatMessages.clear();
+    setTempChat(null);
   }, [chatMessages]);
 
-  const handleSendMessage = useCallback(
-    (text: string, replyToId?: string) => {
-      chatMessages.sendMessage(text, replyToId);
-    },
-    [chatMessages],
-  );
-
-  const handleEditMessage = useCallback(
-    (eventId: string, newText: string) => {
-      void chatMessages.editMessage(eventId, newText);
-    },
-    [chatMessages],
-  );
-
-  const handleDeleteMessage = useCallback(
-    (eventId: string) => {
-      void chatMessages.deleteMessage(eventId);
-    },
-    [chatMessages],
-  );
-
-  const handleTitleEdit = useCallback(
-    (newTitle: string) => {
-      if (activeConversation) {
-        setActiveConversation(prev =>
-          prev ? { ...prev, title: newTitle } : null,
-        );
-        updateConversation(activeConversation.id, { title: newTitle });
+  const handleMuteToggle = useCallback(
+    async (conversation: Conversation) => {
+      const newMuted = !conversation.muted;
+      const success = await conversationApi.changeConversationMuted(
+        conversation.id,
+        newMuted,
+      );
+      if (success) {
+        updateConversation(conversation.id, { muted: newMuted });
+        if (activeConversation.id === conversation.id) {
+          setActiveConversation(prev =>
+            prev ? { ...prev, muted: newMuted } : null,
+          );
+        }
       }
     },
-    [activeConversation, updateConversation],
+    [activeConversation, updateConversation, conversationApi],
   );
 
-  const handleMuteToggle = useCallback(() => {
-    if (activeConversation) {
-      const newMuted = !activeConversation.isMuted;
-      setActiveConversation(prev =>
-        prev ? { ...prev, isMuted: newMuted } : null,
-      );
-      updateConversation(activeConversation.id, { isMuted: newMuted });
-    }
-  }, [activeConversation, updateConversation]);
-
   // Start call from StartCall page (no conversation_id)
-  const handleStartCall = useCallback(
+  const handleStartNewCall = useCallback(
     async (callType?: CallType) => {
+      setIsConnectingCall(true);
       const session = await meetCall.startCall(undefined, callType);
+      setIsConnectingCall(false);
       if (session) {
         setShowCallView(true);
       }
@@ -277,67 +219,53 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     [meetCall],
   );
 
-  // Start audio call from a conversation card
-  const handleConversationAudioCall = useCallback(
-    (conversation: Conversation) => {
-      meetCall.startCall(conversation.id, "audio").then(session => {
-        if (session) {
-          setShowCallView(true);
-          // Add all members as pending for conversation calls
-          apiMembers.forEach(m => {
-            if (m.id !== String(user?.id)) {
-              meetCall.addPending({
-                userId: Number(m.id),
-                name: m.name,
-                profileImageUrl: m.avatarUrl,
-                addedAt: Date.now(),
-              });
-            }
-          });
-        }
-      });
+  const handleConversationCall = useCallback(
+    async (conversation: Conversation, callType: CallType) => {
+      setIsConnectingCall(true);
+      setShowCallView(true);
+      const participants =
+        activeConversation && !isEmpty(apiMembers)
+          ? apiMembers.filter(m => !m.isCurrentUser)
+          : [
+              {
+                id: "group",
+                avatarUrl: conversation.avatarUrl,
+                name: conversation?.title || "Group Call",
+                username: conversation?.id,
+              },
+            ];
+      meetCall.addPending(participants);
+      const session = await meetCall.startCall(conversation.id, callType);
+
+      setIsConnectingCall(false);
+      if (!session) {
+        setShowCallView(false);
+        return;
+      }
     },
-    [meetCall, apiMembers, user?.id],
+    [meetCall, apiMembers],
   );
 
-  // Start video call from a conversation card
-  const handleConversationVideoCall = useCallback(
-    (conversation: Conversation) => {
-      meetCall.startCall(conversation.id, "video").then(session => {
-        if (session) {
-          setShowCallView(true);
-          apiMembers.forEach(m => {
-            if (m.id !== String(user?.id)) {
-              meetCall.addPending({
-                userId: Number(m.id),
-                name: m.name,
-                profileImageUrl: m.avatarUrl,
-                addedAt: Date.now(),
-              });
-            }
-          });
+  const handeInviteUser = useCallback(
+    async (
+      user: MeetUser,
+      inviteToCal: boolean = true,
+      conversationId?: string,
+    ) => {
+      const cId = conversationId || meetCall.activeConversationId;
+      if (cId) {
+        if (inviteToCal) {
+          meetCall.addPending([user]);
         }
-      });
+        await conversationApi.addToConversation(
+            cId,
+          +user.id,
+          inviteToCal,
+        );
+      }
     },
-    [meetCall, apiMembers, user?.id],
+    [activeConversation, conversationApi],
   );
-
-  // Audio call from inside chat
-  const handleChatAudioCall = useCallback(() => {
-    if (activeConversation) handleConversationAudioCall(activeConversation);
-  }, [activeConversation, handleConversationAudioCall]);
-
-  // Video call from inside chat
-  const handleChatVideoCall = useCallback(() => {
-    if (activeConversation) handleConversationVideoCall(activeConversation);
-  }, [activeConversation, handleConversationVideoCall]);
-
-  // Start New Call from header (no conversation)
-  const handleStartNewCall = useCallback(() => {
-    meetCall.startCall(undefined, "video").then(session => {
-      if (session) setShowCallView(true);
-    });
-  }, [meetCall]);
 
   const handleEndCall = useCallback(async () => {
     await meetCall.endCall();
@@ -358,8 +286,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       if (success) {
         removeConversation(conversation.id);
         if (activeConversation?.id === conversation.id) {
-          setActiveConversation(null);
-          chatMessages.clear();
+          handleBackToList();
         }
       }
     },
@@ -372,43 +299,35 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       if (success) {
         removeConversation(conversation.id);
         if (activeConversation?.id === conversation.id) {
-          setActiveConversation(null);
-          chatMessages.clear();
+          handleBackToList();
         }
       }
     },
     [conversationApi, removeConversation, activeConversation, chatMessages],
   );
 
-  // Mute from card popup
-  const handleMuteConversation = useCallback(
-    (conversation: Conversation) => {
-      const newMuted = !conversation.isMuted;
-      updateConversation(conversation.id, { isMuted: newMuted });
+  const handleKickFromConversation = useCallback(
+    async (userId: string) => {
+      if (activeConversation) {
+        const success = await conversationApi.kickFromConversation(
+          activeConversation.id,
+          userId,
+        );
+        if (success) {
+          removeMember(userId);
+        }
+      }
     },
-    [updateConversation],
+    [conversationApi, removeMember, activeConversation],
   );
 
   // ─── Build CallView props ─────────────────────────────
-
-  const owner: CallOwner = useMemo(
-    () => ({
-      id: String(user?.id ?? "me"),
-      name: user
-        ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
-          user.username ||
-          "Me"
-        : "Me",
-      avatarUrl: user?.profile_image_url ?? undefined,
-    }),
-    [user],
-  );
 
   const room: CallRoom = useMemo(
     () => ({
       id: meetCall.activeSession?.id ?? "",
       link: meetCall.activeSession
-        ? `${window.location.origin}?call_session=${meetCall.activeSession.id}`
+        ? `${window.location.origin}?${CALL_SESSION_KEY}=${meetCall.activeSession.id}`
         : "",
     }),
     [meetCall.activeSession],
@@ -424,8 +343,6 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     }
     return "Pencilly Meet";
   }, [meetCall.activeConversationId, conversations]);
-
-
 
   const appLayoutMain =
     typeof document !== "undefined"
@@ -448,17 +365,22 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
         appLayoutMain &&
         createPortal(
           <CallView
+            onInviteUser={handeInviteUser}
             participants={meetCall.participants}
-            owner={owner}
             room={room}
             title={callTitle}
             startTime={Date.now()}
             isSidebarOpen={isOpen}
+            activeConversationId={meetCall.activeConversationId}
             isMicMuted={meetCall.liveKitAPI.micMuted}
             isCameraMuted={meetCall.liveKitAPI.cameraMuted}
             isScreenSharing={meetCall.liveKitAPI.isScreenSharing}
             onToggleMic={meetCall.liveKitAPI.toggleMic}
             onToggleCamera={meetCall.liveKitAPI.toggleCamera}
+            isVolumeMuted={meetCall.liveKitAPI.isVolumeMuted}
+            onToggleVolume={meetCall.liveKitAPI.toggleVolumeMuted}
+            pendingParticipants={meetCall.pendingParticipants}
+            isConnecting={isConnectingCall}
             onToggleScreenShare={() => {
               if (meetCall.liveKitAPI.isScreenSharing) {
                 meetCall.liveKitAPI.stopScreenShare();
@@ -466,10 +388,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
                 void meetCall.liveKitAPI.startScreenShare();
               }
             }}
-            onReaction={emoji => {
-              console.log(emoji)
-              // Reactions are shown locally by CallView, no custom WS needed yet
-            }}
+            onReaction={conversationWs.sendReaction}
             onOpenChat={onOpenChatFromCall}
             onEndCall={handleEndCall}
             onClose={() => setShowCallView(false)}
@@ -477,7 +396,6 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
           />,
           appLayoutMain,
         )}
-
 
       <AppDrawer
         open={isOpen}
@@ -489,13 +407,16 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       >
         {/* Header bar */}
         <div className="spacing-row gap-2 px-3 py-2 border-y">
-          <RenderIf isTrue={!activeConversation && !isEmpty(conversations)}>
+          <RenderIf
+            isTrue={!activeConversation && !isEmpty(conversations) && !tempChat}
+          >
             <DynamicButton
               icon="hugeicons:call-add"
               title={t("new_call")}
               variant="default"
               className="!h-7 !text-xs"
-              onClick={handleStartNewCall}
+              onClick={() => handleStartNewCall()}
+              isPending={isConnectingCall}
             />
           </RenderIf>
           <StatusBadge className="ms-auto" status={connectionState} />
@@ -503,32 +424,42 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
 
         <Show>
           {/* No conversations: show StartCall */}
-          <Show.When isTrue={isEmpty(conversations) && !isLoadingConversations}>
+          <Show.When
+            isTrue={
+              isEmpty(conversations) && !isLoadingConversations && !tempChat
+            }
+          >
             <StartCall
-              handleStartCall={handleStartCall}
-              getSession={meetCall.streamSessionAPI.getSession}
+              handleStartCall={handleStartNewCall}
               handleJoin={handleJoinCall}
               connectionState={connectionState}
             />
           </Show.When>
 
           {/* Active conversation: show Chat */}
-          <Show.When isTrue={!!activeConversation}>
+          <Show.When isTrue={!!activeConversation || !!tempChat}>
             <Chat
-              conversation={activeConversation!}
-              messages={chatMessages.messages}
+              conversation={activeConversation! || tempChat}
+              messages={chatMessages.messages || []}
               typingUsers={[]}
               onBack={handleBackToList}
-              onSendMessage={handleSendMessage}
-              onEditMessage={handleEditMessage}
-              onDeleteMessage={handleDeleteMessage}
-              onCall={handleChatAudioCall}
-              onVideoCall={handleChatVideoCall}
+              onJoinCall={handleJoinCall}
+              isTemp={!activeConversation && !!tempChat}
+              onSendMessage={chatMessages.sendMessage}
+              onEditMessage={chatMessages.editMessage}
+              onDeleteMessage={chatMessages.deleteMessage}
+              onCall={type => {
+                if (activeConversation) {
+                  void handleConversationCall(activeConversation, type);
+                }
+              }}
               onTitleEdit={handleTitleEdit}
-              onDeleteMember={() => {}}
+              onDeleteMember={handleKickFromConversation}
               className="flex-1 overflow-hidden"
               onMuteToggle={handleMuteToggle}
-              onCallMember={() => {}}
+              handeInviteUser={handeInviteUser}
+              isInCall={!!meetCall.activeConversationId}
+              chatWithMember={startChatWithUser}
               isLoadingMessages={chatMessages.isLoading}
               onLeaveGroup={() =>
                 activeConversation &&
@@ -538,8 +469,8 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
                 activeConversation &&
                 handleDeleteForEveryone(activeConversation)
               }
-              apiMembers={apiMembers}
-              mentionMembers={mentionMembers}
+              apiMembers={apiMembers || []}
+              onMarkAsRead={readReceiptsRef.current?.markAsRead}
             />
           </Show.When>
 
@@ -548,17 +479,15 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
             <ConversationPage
               conversations={conversations}
               isLoading={isLoadingConversations}
-              onCall={handleConversationAudioCall}
-              onVideoCall={handleConversationVideoCall}
+              onCall={handleConversationCall}
               onOpenChat={handleOpenChat}
               onLeave={handleLeaveConversation}
               onDelete={handleDeleteForEveryone}
-              onMute={handleMuteConversation}
+              onMute={handleMuteToggle}
               className="flex-1 overflow-x-hidden"
             />
           </Show.Else>
         </Show>
-
       </AppDrawer>
     </>
   );

@@ -1,10 +1,10 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 
-import { useWebSocket, type WsConnectionState } from "@/hooks/useWebSocket";
-import { envs } from "@/constants/envs";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { useUser } from "@/stores/context/user";
+import { envs } from "@/constants/envs";
 
-import type { WsServerMessage } from "../types";
+import type { ReactionType, WsServerMessage } from "../types";
 import { generateClientEventId } from "../utils";
 
 export type WsEventHandler = (message: WsServerMessage) => void;
@@ -20,64 +20,113 @@ interface UseConversationWsOptions {
   onDisconnect?: (code?: number, reason?: string) => void;
 }
 
-interface UseConversationWsReturn {
-  /** Current connection state */
-  connectionState: WsConnectionState;
-  /** Subscribe to conversation(s) */
-  subscribe: (conversationIds: string[]) => boolean;
-  /** Unsubscribe from conversation(s) */
-  unsubscribe: (conversationIds: string[]) => boolean;
-  /** Send a chat message via WS */
-  sendMessage: (
-    conversationId: string,
-    text: string,
-    clientEventId?: string,
-    replyTo?: string,
-  ) => boolean;
-  /** Mark messages as read */
-  markRead: (conversationId: string, lastReadSeq: number) => boolean;
-  /** Send raw WS message */
-  send: (data: Record<string, unknown>) => boolean;
-  /** Manually disconnect */
-  disconnect: () => void;
-  /** Manually reconnect */
-  reconnect: () => void;
-  /** Auto-subscribed conversation IDs from server */
-  autoSubscribedIds: React.MutableRefObject<string[]>;
-}
-
 /**
  * Wraps the generic useWebSocket with conversation-specific logic.
  * Connects to the conversations WS endpoint when enabled and user is authenticated.
  */
-export function useConversationWs(options: UseConversationWsOptions = {}): UseConversationWsReturn {
+export function useConversationWs(options: UseConversationWsOptions = {}) {
   const { enabled = true, onMessage, onConnect, onDisconnect } = options;
   const { user } = useUser();
   const autoSubscribedIds = useRef<string[]>([]);
 
-  const wsUrl = envs.wsBaseUrl
-    ? `${envs.wsBaseUrl}/conversations/`
-    : "";
+  const wsUrl = envs.wsBaseUrl ? `${envs.wsBaseUrl}/conversations/` : "";
 
   const isAuthenticated = !!user;
 
-  const handleMessage = useCallback((data: any) => {
-    const message = data as WsServerMessage;
+  // Centralized dedupe map for incoming messages (prevent duplicate processing)
+  const processedEventKeys = useRef<Map<string, number>>(new Map());
+  const DEDUP_MS = 30_000;
 
-    // Track auto-subscribed IDs
-    if (message.type === "conversations:connected") {
-      autoSubscribedIds.current = message.autoSubscribedConversationIds ?? [];
+  useEffect(() => {
+    return () => {
+      processedEventKeys.current.clear();
+    };
+  }, []);
+
+  const deriveKeyForMessage = useCallback((message: WsServerMessage): string | null => {
+    try {
+      if (message.type === "conversations:connected") return null;
+
+      // conversation:event has nested `event` payload
+      if (message.type === "conversation:event") {
+        const convEvent = message as any;
+        const ev = convEvent.event ?? {};
+        const sessionId =
+            ev.payload?.payload?.sessionId ?? ev.payload?.sessionId ?? undefined;
+        const eventId = ev.id ?? convEvent.eventId ?? undefined;
+
+        if (sessionId) return `session:${sessionId}`;
+        // If we have an event id and a status, include status in the key so
+        // status transitions for the same event (e.g. pending -> done) are
+        // not treated as duplicates and are delivered to listeners.
+        const statusForKey = ev.status ?? ev.payload?.status ?? ev.payload?.payload?.status ?? undefined;
+        if (eventId) return statusForKey ? `id:${eventId}:status:${statusForKey}` : `id:${eventId}`;
+
+        // Deduplicate status-type events by status + actor + conversation
+        const status =
+            ev.status ?? ev.payload?.status ?? ev.payload?.payload?.status ?? undefined;
+        if (status) {
+          return `status:${status}:actor:${ev.actor?.id ?? "unknown"}:conv:${convEvent.conversationId ?? "global"}`;
+        }
+
+        return `sub:${ev.subtype ?? ev.type ?? "unknown"}:actor:${ev.actor?.id ?? "unknown"}:conv:${convEvent.conversationId ?? "global"}`;
+      }
+
+      // conversation:reaction - use conversationId + actor/identity + optional clientEventId
+      if (message.type === "conversation:reaction") {
+        const m = message as any;
+        const conv = m.conversationId ?? m.conversation_id ?? "global";
+        const id = m.identity ?? m.senderUserId ?? "unknown";
+        const cid = m.clientEventId ?? m.client_event_id ?? m.id ?? undefined;
+        return cid ? `reaction:${conv}:${id}:${cid}` : `reaction:${conv}:${id}`;
+      }
+
+      // call invite messages - dedupe by sessionId if present
+      if (message.type === "conversation:call_invite") {
+        const m = message as any;
+        const sid = m.sessionId ?? m.session_id ?? m.session?.id ?? undefined;
+        return sid ? `call_invite:session:${sid}` : `call_invite:${JSON.stringify(m).slice(0, 200)}`;
+      }
+
+      // fallback: no dedupe by default for unknown message shapes
+      return null;
+    } catch (e) {
+      return null;
     }
+  }, []);
 
-    onMessage?.(message);
-  }, [onMessage]);
 
-  const {
-    send,
-    connectionState,
-    disconnect,
-    reconnect,
-  } = useWebSocket({
+  const handleMessage = useCallback(
+    (data: any) => {
+      const message = data as WsServerMessage;
+      console.log("Received WS message:", message);
+      // Track auto-subscribed IDs
+      if (message.type === "conversations:connected") {
+        autoSubscribedIds.current = message.autoSubscribedConversationIds ?? [];
+      }
+
+      // Central dedupe: derive a stable key for common conversation messages
+      const key = deriveKeyForMessage(message);
+      if (key) {
+        const now = Date.now();
+        const last = processedEventKeys.current.get(key);
+        if (last && now - last < DEDUP_MS) {
+          return; // skip duplicate
+        }
+        processedEventKeys.current.set(key, now);
+
+        // Prune old entries
+        processedEventKeys.current.forEach((ts, k) => {
+          if (now - ts > DEDUP_MS * 2) processedEventKeys.current.delete(k);
+        });
+      }
+
+      onMessage?.(message);
+    },
+    [onMessage, deriveKeyForMessage],
+  );
+
+  const { send, connectionState, disconnect, reconnect } = useWebSocket({
     url: wsUrl,
     enabled: enabled && isAuthenticated && !!wsUrl,
     onMessage: handleMessage,
@@ -88,45 +137,73 @@ export function useConversationWs(options: UseConversationWsOptions = {}): UseCo
     heartbeatInterval: 30000,
   });
 
-  const subscribe = useCallback((conversationIds: string[]): boolean => {
-    return send({
-      type: "conversations:subscribe",
-      conversationIds,
-    });
-  }, [send]);
+  const subscribe = useCallback(
+    (conversationIds: string[]): boolean => {
+      return send({
+        type: "conversations:subscribe",
+        conversationIds,
+      });
+    },
+    [send],
+  );
 
-  const unsubscribe = useCallback((conversationIds: string[]): boolean => {
-    return send({
-      type: "conversations:unsubscribe",
-      conversationIds,
-    });
-  }, [send]);
+  const unsubscribe = useCallback(
+    (conversationIds: string[]): boolean => {
+      return send({
+        type: "conversations:unsubscribe",
+        conversationIds,
+      });
+    },
+    [send],
+  );
 
-  const sendMessage = useCallback((
-    conversationId: string,
-    text: string,
-    clientEventId?: string,
-    replyTo?: string,
-  ): boolean => {
-    const payload: Record<string, unknown> = {
-      type: "chat:send",
-      conversationId,
-      text,
-      clientEventId: clientEventId ?? generateClientEventId(),
-    };
-    if (replyTo) {
-      payload.replyTo = replyTo;
-    }
-    return send(payload);
-  }, [send]);
+  const sendMessage = useCallback(
+    (
+      conversationId: string,
+      text: string,
+      clientEventId?: string,
+      replyTo?: string,
+        agentType?: string
+    ): boolean => {
+      const payload: Record<string, unknown> = {
+        type: "chat:send",
+        conversationId,
+        text,
+        clientEventId: clientEventId ?? generateClientEventId(),
+        agentType,
+      };
+      console.log(payload)
+      if (replyTo) {
+        payload.replyTo = replyTo;
+      }
+      return send(payload);
+    },
+    [send],
+  );
 
-  const markRead = useCallback((conversationId: string, lastReadSeq: number): boolean => {
-    return send({
-      type: "conversation:mark_read",
-      conversationId,
-      lastReadSeq,
-    });
-  }, [send]);
+  const markRead = useCallback(
+    (conversationId: string, lastReadSeq: number): boolean => {
+      return send({
+        type: "conversation:mark_read",
+        conversationId,
+        lastReadSeq,
+      });
+    },
+    [send],
+  );
+
+  const sendReaction = useCallback(
+    (conversationId: string, identity: string, reactionType: ReactionType, text: string = "") => {
+      return send({
+        type: "conversation:reaction",
+        conversationId,
+        reactionType,
+        identity,
+        text: text || "✋",
+      });
+    },
+    [send],
+  );
 
   return {
     connectionState,
@@ -138,5 +215,6 @@ export function useConversationWs(options: UseConversationWsOptions = {}): UseCo
     disconnect,
     reconnect,
     autoSubscribedIds,
+    sendReaction,
   };
 }

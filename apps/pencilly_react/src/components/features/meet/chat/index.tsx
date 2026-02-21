@@ -1,8 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState, type FC } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 
 import ChatInfo from "@/components/features/meet/chat/ChatInfo";
 import ChatSettings from "@/components/features/meet/chat/ChatSettings";
 import { DEFAULT_GROUP_SETTINGS } from "@/components/features/meet/constants";
+import { useConversationActivities } from "@/components/features/meet/useConversationActivities";
 import { groupMessagesByDate } from "@/components/features/meet/utils";
 import { Show } from "@/components/shared/Show";
 import AppTypo from "@/components/ui/custom/app-typo";
@@ -10,11 +17,11 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
 
 import type {
+  CallType,
   ChatGroupSettings,
   ChatMessage,
   ChatView as ChatViewType,
   Conversation,
-  ConversationMember,
   MeetUser,
 } from "../types";
 import ChatBackground from "./ChatBackground";
@@ -23,7 +30,6 @@ import ChatInput from "./ChatInput";
 import DateSeparator from "./DateSeparator";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
-import {useConversationApi} from "@/components/features/meet/hooks";
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -35,15 +41,19 @@ interface ChatViewProps {
   onEditMessage?: (eventId: string, newText: string) => void;
   /** Delete a message via REST */
   onDeleteMessage?: (eventId: string) => void;
-  onCall?: () => void;
-  onVideoCall?: () => void;
+  onCall: (type: CallType) => void;
+  onJoinCall: (sessionId: string) => void;
   onTitleEdit?: (newTitle: string) => void;
   className?: string;
   groupSettings?: ChatGroupSettings;
-  onMuteToggle?: () => void;
+  onMuteToggle: (conversation: Conversation) => void;
   onLeaveGroup?: () => void;
   onAvatarChange?: (file: File) => void;
-  onCallMember?: (memberId: string) => void;
+  handeInviteUser: (
+    user: MeetUser,
+    inviteToCal?: boolean,
+    conversationId?: string,
+  ) => void;
   onDeleteMember: (memberId: string) => void;
   onSettingsChange?: (settings: ChatGroupSettings) => void;
   /** Whether messages are loading */
@@ -52,8 +62,10 @@ interface ChatViewProps {
   onDeleteForEveryone?: () => void;
   /** API-resolved members for ChatInfo and mention */
   apiMembers?: MeetUser[];
-  /** Username-based mention members */
-  mentionMembers?: Array<{ username: string; displayName: string; avatarUrl?: string }>;
+  onMarkAsRead: (seq: number) => void;
+  isTemp?: boolean;
+  chatWithMember: (user: MeetUser, me?: MeetUser) => void;
+  isInCall?: boolean;
 }
 
 /**
@@ -69,12 +81,12 @@ const ChatView: FC<ChatViewProps> = ({
   onEditMessage,
   onDeleteMessage,
   onCall,
-  onVideoCall,
   onTitleEdit,
   className,
   groupSettings,
   onAvatarChange,
-  onCallMember,
+  handeInviteUser,
+  isInCall,
   onLeaveGroup,
   onMuteToggle,
   onSettingsChange,
@@ -82,19 +94,33 @@ const ChatView: FC<ChatViewProps> = ({
   isLoadingMessages,
   onDeleteForEveryone,
   apiMembers,
-  mentionMembers,
+  onMarkAsRead,
+  chatWithMember,
+  isTemp,
+  onJoinCall,
 }) => {
   const t = useTranslations("meet.chat");
   const tMeet = useTranslations("meet");
   const [chatBg, setChatBg] = useState("#6F5CC6");
   const [activeView, setActiveView] = useState<ChatViewType>("chat");
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
-  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(
+    null,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
-  const api = useConversationApi();
+  const isGroup = conversation.isGroup ?? false;
+
+  const { activeCall } = useConversationActivities(
+    {
+      conversation_id: conversation?.id,
+      kind: "call",
+      status: "active",
+    },
+    !!conversation && isGroup,
+  );
 
   useEffect(() => {
-    void api.markRead(conversation.id);
+    onMarkAsRead(conversation.next_seq);
   }, [conversation.id]);
 
   // Auto-scroll to bottom on new messages
@@ -117,21 +143,21 @@ const ChatView: FC<ChatViewProps> = ({
     setReplyTo(null);
   }, []);
 
+  const handleSend = useCallback(
+    (text: string, replyToId?: string) => {
+      onSendMessage(text, replyToId);
+      setReplyTo(null);
+    },
+    [onSendMessage],
+  );
 
-  const handleSend = useCallback((text: string, replyToId?: string) => {
-    onSendMessage(text, replyToId);
-    setReplyTo(null);
-  }, [onSendMessage]);
-
-  const handleEditSubmit = useCallback((eventId: string, newText: string) => {
-    onEditMessage?.(eventId, newText);
-    setEditingMessage(null);
-  }, [onEditMessage]);
-
-  const isGroup = conversation.isGroup ?? false;
-  const isMuted = conversation.isMuted ?? false;
-  const isOwner = conversation.role === "owner";
-  const members = conversation.members ?? [];
+  const handleEditSubmit = useCallback(
+    (eventId: string, newText: string) => {
+      onEditMessage?.(eventId, newText);
+      setEditingMessage(null);
+    },
+    [onEditMessage],
+  );
 
   return (
     <div className={cn("col h-full overflow-hidden", className)}>
@@ -152,38 +178,46 @@ const ChatView: FC<ChatViewProps> = ({
           <ChatInfo
             onDeleteMember={onDeleteMember}
             conversation={conversation}
-            isOwner={isOwner}
-            isMuted={isMuted}
             onBack={() => setActiveView("chat")}
-            onCall={onCall}
-            onMuteToggle={onMuteToggle}
+            onCall={() => onCall("audio")}
+            onMuteToggle={() => onMuteToggle(conversation)}
             onSettings={() => setActiveView("settings")}
             onLeaveGroup={onLeaveGroup}
             onDeleteForEveryone={onDeleteForEveryone}
             onAvatarChange={onAvatarChange}
             onNameChange={onTitleEdit}
-            onCallMember={onCallMember}
-            isGroup={isGroup}
+            handeInviteUser={handeInviteUser}
+            isInCall={isInCall}
             apiMembers={apiMembers}
+            chatWithMember={chatWithMember}
           />
         </Show.When>
 
         {/* Chat view */}
         <Show.Else>
           <ChatHeader
+              chatWithMember={chatWithMember}
+            members={apiMembers ?? conversation.members}
             conversation={conversation}
             activeView={activeView}
             onBack={onBack}
             onViewChange={setActiveView}
             onCall={onCall}
-            onVideoCall={onVideoCall}
+            onJoinCall={() => {
+              if (activeCall?.payload?.sessionId) {
+                onJoinCall(activeCall.payload.sessionId);
+              }
+            }}
+            isActiveCall={!!activeCall && !!activeCall?.payload?.sessionId}
           />
           <ChatBackground color={chatBg} className="flex-1 min-h-0">
             {/* Scrollable message area */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-2">
               {isLoadingMessages ? (
                 <div className="centered-col h-full">
-                  <AppTypo color="secondary">{tMeet("loading_messages")}</AppTypo>
+                  <AppTypo color="secondary">
+                    {tMeet("loading_messages")}
+                  </AppTypo>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="centered-col h-full">
@@ -204,7 +238,15 @@ const ChatView: FC<ChatViewProps> = ({
                           highlightMentions
                           onReply={handleReply}
                           onEdit={handleEdit}
-                          onDelete={message =>  onDeleteMessage?.(message.id)}
+                          onDelete={message => onDeleteMessage?.(message.id)}
+                          replyToSenderName={
+                            msg.replyTo
+                              ? msg.replyTo?.sender?.name
+                                ? msg.replyTo?.sender?.name
+                                : messages.find(m => m.id === msg.replyTo?.id)
+                                    ?.actor?.name
+                              : undefined
+                          }
                         />
                       ))}
                     </React.Fragment>
@@ -218,15 +260,14 @@ const ChatView: FC<ChatViewProps> = ({
             {/* Input */}
             <div className="p-2">
               <ChatInput
-                members={members}
-                mentionMembers={mentionMembers}
+                members={apiMembers}
                 onSend={handleSend}
                 replyTo={replyTo}
                 editingMessage={editingMessage}
                 onCancelReply={() => setReplyTo(null)}
                 onCancelEdit={() => setEditingMessage(null)}
                 onEditSubmit={handleEditSubmit}
-                disabled={false}
+                disabled={isTemp}
               />
             </div>
           </ChatBackground>

@@ -1,4 +1,9 @@
-import { ChatGroupSettings } from "@/components/features/meet/types";
+import { ChatGroupSettings, type Decorator } from "@/components/features/meet/types";
+import { sharedIcons } from "@/constants/icons";
+
+
+
+
 
 export const DEFAULT_GROUP_SETTINGS: ChatGroupSettings = {
   message: {
@@ -48,3 +53,13 @@ export const STATUS_CLASSES = {
     text: "text-info",
   },
 };
+
+export const decorators: Decorator[] = [
+    {
+        id: "ai-decorator",
+        icon: sharedIcons.ai,
+        title: "AI Assistant",
+        description: "Mention AI for help",
+        key: "ai",
+    },
+];

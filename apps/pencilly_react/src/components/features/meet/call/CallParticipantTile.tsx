@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, type FC } from "react";
+import React, { type FC } from "react";
 
+import { usePlayMediaStream } from "@/components/features/meet/hooks";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
@@ -28,7 +29,6 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
   compact = false,
 }) => {
   const t = useTranslations("meet.call");
-  const videoRef = useRef<HTMLVideoElement>(null);
   const isTouchDevice = useIsTouchDevice();
 
   const {
@@ -36,41 +36,17 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
     name,
     avatarUrl,
     isMuted,
-    isCameraOff,
     isSpeaking,
     isPinned,
     isLocal,
     videoTrack,
     reaction,
+      raisedHand
   } = participant;
 
-  // useEffect(() => {
-  //   const videoElement = videoRef.current;
-  //   if (!videoElement || !videoTrack) return;
-  //
-  //   videoElement.srcObject = new MediaStream([videoTrack]);
-  //
-  //   // Ensure video playback starts
-  //   videoElement.play().catch(err => console.error("Play error:", err));
-  //
-  //   return () => {
-  //     if (videoElement) {
-  //       videoElement.srcObject = null;
-  //     }
-  //   };
-  // }, [videoTrack, isLocal]);
 
-  const track = videoTrack?.track;
-
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !track) return;
-    el.srcObject = new MediaStream([track]);
-    el.play().catch(() => {});
-    return () => {
-      if (el) el.srcObject = null;
-    };
-  }, [track]);
+  const { isTrackExists, isTrackMuted, videoRef } =
+    usePlayMediaStream(videoTrack);
 
   return (
     <div
@@ -81,7 +57,7 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
       )}
     >
       {/* Video layer */}
-      {track && (
+      {isTrackExists && (
         <video
           ref={videoRef}
           autoPlay
@@ -89,17 +65,17 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
           muted={isLocal}
           className={cn(
             "absolute inset-0 h-full w-full object-cover",
-            videoTrack?.isMuted && "hidden",
+            isTrackMuted && "hidden",
           )}
         />
       )}
-      {!!videoTrack?.isMuted && (
-        <div className="absolute inset-0 flex items-center justify-center bg-foreground/10">
+      {(isTrackMuted || !isTrackExists )&& (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted">
           <UserAvatar
             imageSrc={avatarUrl}
             name={name}
             className={cn(
-              compact ? "size-12 sm:size-18" : "size-16 sm:size-28",
+              compact ? "size-10 sm:size-14" : "size-16 sm:size-28",
               "text-base",
             )}
           />
@@ -117,16 +93,25 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
       )}
 
       {/* Bottom bar: name + actions */}
-      <div className="absolute bottom-0 inset-x-0 flex items-end justify-between p-2 z-20">
+      <div className="absolute bottom-0 inset-x-0 flex items-end  p-2 z-20">
+        {
+            raisedHand && (
+                <AppIcon
+                    icon="noto-v1:raised-hand"
+                    className="size-6 shrink-0 mb-1"
+                />
+            )
+        }
         {/* Name badge */}
         <div
           className={cn(
-            "flex items-center gap-1 px-2 py-1 rounded-md max-w-[60%]",
-            !!track && !videoTrack?.isMuted
+            "row gap-1 px-2 py-1 rounded-md max-w-[60%]",
+            isTrackExists && !isTrackMuted
               ? "bg-background/80 backdrop-blur-sm"
               : "",
           )}
         >
+
           {isMuted && (
             <AppIcon
               icon={sharedIcons.mic_off}
@@ -145,11 +130,8 @@ const CallParticipantTile: FC<CallParticipantTileProps> = ({
         {!isLocal && (
           <div
             className={cn(
-              "row gap-2 transition-opacity",
+              "row gap-2 transition-opacity ms-auto",
               !isTouchDevice && " lg:opacity-0 group-hover:opacity-100",
-              // showMenu
-              //   ? "opacity-100"
-              //   : "opacity-0 group-hover:opacity-100",
             )}
           >
             <AppIconButton

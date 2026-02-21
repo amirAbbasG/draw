@@ -2,28 +2,24 @@ import React, { useMemo, useState, type FC } from "react";
 
 import { ConversationAvatar } from "@/components/features/meet/conversation/ConversationAvatar";
 import ConversationDeleteAlert from "@/components/features/meet/conversation/ConversationDeleteAlert";
+import MoreDropdown, {
+  MoreMenuIem,
+} from "@/components/features/meet/MoreDropdown";
+import { formatMessageTime } from "@/components/features/meet/utils";
 import RenderIf from "@/components/shared/RenderIf";
 import { Badge } from "@/components/ui/badge";
-import AppIconButton from "@/components/ui/custom/app-icon-button";
 import AppTypo from "@/components/ui/custom/app-typo";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
-import type { Conversation } from "../types";
+import type { CallType, Conversation } from "../types";
 
 const MAX_DISPLAY_MEMBERS = 3;
 
 interface ConversationCardProps {
   conversation: Conversation;
-  onCall?: (conversation: Conversation) => void;
-  onVideoCall?: (conversation: Conversation) => void;
+  onCall: (conversation: Conversation, type: CallType) => void;
   onLeave?: (conversation: Conversation) => void;
   onDelete?: (conversation: Conversation) => void;
   onMute?: (conversation: Conversation) => void;
@@ -34,7 +30,6 @@ interface ConversationCardProps {
 const ConversationCard: FC<ConversationCardProps> = ({
   conversation,
   onCall,
-  onVideoCall,
   onLeave,
   onDelete,
   onMute,
@@ -49,15 +44,14 @@ const ConversationCard: FC<ConversationCardProps> = ({
     title,
     avatarUrl,
     members = [],
-    lastMessage,
+    last_message,
     unseenCount,
     isOnline,
     isGroup = false,
-    isMuted = false,
+    muted = false,
   } = conversation;
 
   const isOwner = conversation.role === "owner";
-
 
   const displayTitle = useMemo(() => {
     if (title) return title;
@@ -76,12 +70,46 @@ const ConversationCard: FC<ConversationCardProps> = ({
   }, [title, isGroup, members, t]);
 
   const subtitle = useMemo(() => {
-    if (!lastMessage) return t("no_messages_yet");
-    return `${lastMessage.senderName}: ${lastMessage.text}`;
-  }, [lastMessage, t]);
+    if (!last_message) return t("no_messages_yet");
 
-  const timestamp = lastMessage?.timestamp;
+    const senderName = last_message.isCurrentUser
+      ? t("you")
+      : last_message.actor
+        ? last_message.actor.name
+        : last_message.payload?.agentType
+          ? last_message.payload.agentType.replaceAll("-", " ")
+          : t("unknown");
+    return `${senderName}: ${last_message.body}`;
+  }, [last_message, t]);
+
   const leaveOrDeleteLabel = isGroup ? t("leave") : t("delete");
+
+  const moreOptions: MoreMenuIem[] = [
+    {
+      label: tMeet("audio_call"),
+      icon: sharedIcons.call,
+      onClick: () => onCall(conversation, "audio"),
+    },
+    {
+      label: tMeet("video_call"),
+      icon: sharedIcons.video,
+      onClick: () => onCall(conversation, "video"),
+    },
+    {
+      label: muted ? t("unmute") : t("mute"),
+      icon: muted
+        ? "hugeicons:notification-snooze-03"
+        : "hugeicons:notification-off-03",
+      onClick: () => onMute?.(conversation),
+    },
+    {
+      label: leaveOrDeleteLabel,
+      icon: isGroup ? sharedIcons.logout : sharedIcons.delete,
+      className: "!text-danger",
+      onClick: () => setOpenDelete(true),
+      preventCloseOnClick: true,
+    },
+  ];
 
   return (
     <>
@@ -114,95 +142,48 @@ const ConversationCard: FC<ConversationCardProps> = ({
           <AppTypo variant="headingXS" className="truncate">
             {displayTitle}
           </AppTypo>
-          <div className="flex items-center gap-1">
-            <AppTypo variant="small" color="secondary" className="truncate">
-              {subtitle}
+          <div className="flex items-center gap-1 pe-2">
+            <AppTypo variant="small" color="secondary" className="truncate first-letter:capitalize">
+              {subtitle} .
             </AppTypo>
-            {timestamp && (
-              <>
-                <AppTypo variant="small" color="secondary" className="shrink-0">
-                  {"·"}
-                </AppTypo>
-                <AppTypo variant="small" color="secondary" className="shrink-0">
-                  {timestamp}
-                </AppTypo>
-              </>
+            {last_message?.createdAt && (
+              <AppTypo variant="xs" color="secondary" className="shrink-0">
+                {formatMessageTime(last_message.createdAt)}
+              </AppTypo>
             )}
           </div>
         </div>
 
         {/* Unseen Message */}
         <RenderIf isTrue={unseenCount != null && unseenCount > 0}>
-          <Badge className="size-4 p-0 text-[8px] centered-col shrink-0">
+          <Badge
+            className={cn(
+              "size-4 p-0 text-[8px] centered-col shrink-0",
+              muted && "!bg-muted !text-foreground",
+            )}
+          >
             {unseenCount! > 99 ? "99+" : unseenCount}
           </Badge>
         </RenderIf>
 
         {/* Audio call button */}
-        <AppIconButton
-          icon={sharedIcons.call}
-          size="xs"
-          className="shrink-0 -me-1"
-          onClick={e => {
-            e.stopPropagation();
-            onCall?.(conversation);
-          }}
+        {/*<AppIconButton*/}
+        {/*  icon={sharedIcons.call}*/}
+        {/*  size="xs"*/}
+        {/*  variant="outline"*/}
+        {/*  className="shrink-0 -me-0.5 "*/}
+        {/*  iconClassName="!size-3.5"*/}
+        {/*  onClick={e => {*/}
+        {/*    e.stopPropagation();*/}
+        {/*    onCall?.(conversation, "audio");*/}
+        {/*  }}*/}
+        {/*/>*/}
+        <MoreDropdown
+          items={moreOptions}
+          open={moreOpen}
+          setOpen={setMoreOpen}
         />
-
         {/* More popup (3-dot menu) */}
-        <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
-          <DropdownMenuTrigger
-            onClick={e => {
-              e.stopPropagation();
-            }}
-          >
-            <AppIconButton
-              icon="hugeicons:more-vertical"
-              size="xs"
-              element="div"
-              className="shrink-0"
-            />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            // portal={false}
-            align="end"
-            className="w-32 z-100"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Video call */}
-            <DropdownMenuItem
-              icon={sharedIcons.video}
-              onClick={() => {
-                setMoreOpen(false);
-                onVideoCall?.(conversation);
-              }}
-            >
-              {tMeet("video_call")}
-            </DropdownMenuItem>
-
-            {/* Mute / Unmute */}
-            <DropdownMenuItem
-              icon={
-                isMuted
-                  ? "hugeicons:notification-snooze-03"
-                  : "hugeicons:notification-off-03"
-              }
-              onClick={() => {
-                setMoreOpen(false);
-                onMute?.(conversation);
-              }}
-            >
-              {isMuted ? t("unmute") : t("mute")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="!text-danger"
-              icon={isGroup ? sharedIcons.logout : sharedIcons.delete}
-                onClick={() => setOpenDelete(true)}
-            >
-              {leaveOrDeleteLabel}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
       <ConversationDeleteAlert
         onLeaveGroup={() => {

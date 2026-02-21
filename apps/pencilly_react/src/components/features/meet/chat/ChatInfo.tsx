@@ -1,5 +1,7 @@
 import React, { useRef, type FC } from "react";
 
+import AddUserPopup from "@/components/features/meet/AddUserPopup";
+import MemberCard from "@/components/features/meet/chat/MemberCard";
 import ConversationDeleteAlert from "@/components/features/meet/conversation/ConversationDeleteAlert";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import RenderIf from "@/components/shared/RenderIf";
@@ -15,51 +17,53 @@ import type { Conversation, MeetUser } from "../types";
 
 interface ChatInfoProps {
   conversation: Conversation;
-  isOwner?: boolean;
   onBack: () => void;
   onCall?: () => void;
   onMuteToggle?: () => void;
-  isMuted?: boolean;
   onSettings?: () => void;
   onLeaveGroup?: () => void;
   /** Delete for everyone (owner only) */
   onDeleteForEveryone?: () => void;
   onAvatarChange?: (file: File) => void;
   onNameChange?: (name: string) => void;
-  onCallMember: (memberId: string) => void;
+  handeInviteUser: (
+    user: MeetUser,
+    inviteToCal?: boolean,
+    conversationId?: string,
+  ) => void;
   onDeleteMember: (memberId: string) => void;
   className?: string;
-  isGroup?: boolean;
   /** Real members from API (overrides conversation.members) */
   apiMembers?: MeetUser[];
+  chatWithMember: (user: MeetUser, me?: MeetUser) => void;
+  isInCall?: boolean;
 }
 
 const ChatInfo: FC<ChatInfoProps> = ({
   conversation,
-  isOwner = false,
   onBack,
   onCall,
   onMuteToggle,
-  isMuted = false,
   onSettings,
   onLeaveGroup,
   onDeleteForEveryone,
   onAvatarChange,
   onNameChange,
-  onCallMember,
+  handeInviteUser,
   className,
   onDeleteMember,
-  isGroup,
   apiMembers,
+  chatWithMember,
+  isInCall,
 }) => {
   const t = useTranslations("meet.chat.info");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use API members if provided, otherwise fall back to conversation.members
   const members = apiMembers ?? conversation.members ?? [];
-  const { title, avatarUrl } = conversation;
+  const { title, avatarUrl, muted, role, isGroup } = conversation;
+  const isOwner = role === "owner";
 
-  console.log(apiMembers);
   const displayTitle =
     title || members.map(m => m.name).join(", ") || "Conversation";
 
@@ -155,11 +159,11 @@ const ChatInfo: FC<ChatInfoProps> = ({
           {/* Mute / Unmute notification */}
           <ActionButton
             icon={
-              isMuted
+              muted
                 ? "hugeicons:notification-off-03"
                 : "hugeicons:notification-snooze-03"
             }
-            label={isMuted ? t("unmute") : t("mute")}
+            label={muted ? t("unmute") : t("mute")}
             onClick={onMuteToggle}
           />
 
@@ -189,45 +193,32 @@ const ChatInfo: FC<ChatInfoProps> = ({
         {/* Members list */}
         <RenderIf isTrue={(isGroup ?? false) || members.length > 0}>
           <div className="py-2 bg-background-lighter">
-            <AppTypo variant="headingS" className="px-2">
-              {t("members")} ({members.length})
-            </AppTypo>
+            <div className="spacing-row px-2">
+              <AppTypo variant="headingS" >
+                {t("members")} ({members.length})
+              </AppTypo>
+              <AddUserPopup
+                onInvite={user => handeInviteUser(user, false, conversation.id)}
+              />
+            </div>
 
             <div className="col gap-1">
               {members.map(member => (
-                <div
+                <MemberCard
                   key={member.id}
-                  className="row p-2 gap-2 hover:bg-background transition-colors"
-                >
-                  <UserAvatar
-                    imageSrc={member.avatarUrl}
-                    name={member.name}
-                    className="size-12"
-                  />
-                  <AppTypo
-                    variant="headingXS"
-                    className="flex-1 truncate font-medium"
-                  >
-                    {member.name}
-                  </AppTypo>
-                  <AppIconButton
-                    icon={sharedIcons.call}
-                    size="xs"
-                    variant="outline"
-                    title={t("call")}
-                    onClick={() => onCallMember?.(member.id)}
-                  />
-                  {isOwner && (
-                    <AppIconButton
-                      icon={sharedIcons.delete}
-                      size="xs"
-                      variant="outline"
-                      color="danger"
-                      title={t("delete")}
-                      onClick={() => onDeleteMember(member.id)}
-                    />
-                  )}
-                </div>
+                  member={member}
+                  onAddToCall={isInCall ? handeInviteUser : undefined}
+                  isOwner={isOwner}
+                  onDeleteMember={onDeleteMember}
+                  onClick={
+                    member.isCurrentUser
+                      ? undefined
+                      : () => {
+                          chatWithMember(member);
+                          onBack();
+                        }
+                  }
+                />
               ))}
             </div>
           </div>

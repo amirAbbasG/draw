@@ -34,10 +34,12 @@ export function useStreamSession({ onError }: UseStreamSessionOptions = {}) {
         method: "post",
         url: API_BASE + "/",
         showError: true,
+        throwError: true,
       },{
         "only_chat": false,
         "encrypted": false,
         "is_public":  envs.isDev,
+        // "is_public":  false,
         conversation_id: conversationId,
       });
       if (data) {
@@ -62,6 +64,7 @@ export function useStreamSession({ onError }: UseStreamSessionOptions = {}) {
           method: "get",
           url: `${API_BASE}/${sessionId}/`,
           showError: true,
+          throwError: true,
         });
         setSession(data);
         setSearchParams({ [CALL_SESSION_KEY]: data.id });

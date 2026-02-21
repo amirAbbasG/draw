@@ -113,7 +113,7 @@ const EditableDiv = forwardRef<HTMLDivElement, Props>(
 
 export default EditableDiv;
 
-const mentionRegex = /@[\w-]+/g;
+const mentionRegex = /@[\w.-]+/g;
 
 const escapeHtml = (unsafe: string) =>
   unsafe
@@ -127,11 +127,10 @@ const highlightMentions = (text: string) => {
   if (!text) return "";
   const escaped = escapeHtml(text);
   return escaped
-    .replace(mentionRegex, m => {
-      // using tailwind-like classes consistent with the project
-      return `<span class="mention text-primary ">${m}</span>`;
-    })
-    .replace(/\n/g, "<br/>");
+      .replace(mentionRegex, m => {
+        return `<span class="mention text-primary ">${m}</span>`;
+      })
+      .replace(/\n/g, "<br/>");
 };
 
 const getCaretCharacterOffsetWithin = (element: Node | null) => {

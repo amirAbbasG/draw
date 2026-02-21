@@ -15,12 +15,14 @@ import { cn } from "@/lib/utils";
 interface IProps extends ComponentProps<typeof EmojiPickerReact> {
   onChange: (emoji: string) => void;
   Trigger?: React.ReactNode;
+  closeOnEmojiSelect?: boolean;
 }
 
 const EmojiPicker: FC<IProps> = ({
   onChange,
   reactionsDefaultOpen,
     Trigger,
+    closeOnEmojiSelect,
   ...otherProps
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,6 +30,9 @@ const EmojiPicker: FC<IProps> = ({
 
   const onClick = (data: EmojiClickData) => {
     onChange(data.emoji);
+    if (closeOnEmojiSelect) {
+      setIsOpen(false);
+    }
   };
 
   return (

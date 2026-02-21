@@ -2,30 +2,24 @@ import React, { useEffect, useState, type FC } from "react";
 
 import type { StreamSession } from "@/components/features/call/types";
 import { CallBox } from "@/components/features/meet/start/CallBox";
+import { OrDivider } from "@/components/shared/OrDivider";
 import { Button } from "@/components/ui/button";
-import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/stores/context/user";
 import { sharedIcons } from "@/constants/icons";
+import { CALL_SESSION_KEY } from "@/constants/keys";
 import { useTranslations } from "@/i18n";
-import { OrDivider } from "@/components/shared/OrDivider";
-import { cn } from "@/lib/utils";
 
 import type { CallType, ConnectionState } from "../types";
 
 interface IProps {
   handleStartCall: (callType?: CallType) => Promise<StreamSession | null>;
-  getSession: (sessionId: string) => Promise<StreamSession | null>;
   handleJoin: (sessionId: string, callType?: CallType) => Promise<void>;
   connectionState: ConnectionState;
 }
 
-const StartCall: FC<IProps> = ({
-  getSession,
-  handleJoin,
-  handleStartCall,
-}) => {
+const StartCall: FC<IProps> = ({ handleJoin, handleStartCall }) => {
   const t = useTranslations("meet.start");
   const [sessionId, setSessionId] = useState("");
   const [pendingCreate, setPendingCreate] = useState(false);
@@ -45,7 +39,7 @@ const StartCall: FC<IProps> = ({
 
   const create = async () => {
     setPendingCreate(true);
-    const session = await handleStartCall(callType);
+    await handleStartCall(callType);
     setPendingCreate(false);
   };
 
@@ -57,6 +51,29 @@ const StartCall: FC<IProps> = ({
   };
 
   const isLoading = pendingCreate || pendingJoin;
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    // 1. Get the pasted string
+
+    const pastedData = e.clipboardData.getData("Text");
+    try {
+      // 2. Check if it's a valid URL
+      const url = new URL(pastedData);
+
+      // 3. Extract the 'call_session' parameter
+      const callSession = url.searchParams.get(CALL_SESSION_KEY);
+      const callSessionFallback = url.searchParams.get(
+        CALL_SESSION_KEY.replace("-", "_"),
+      );
+      const sessionValue = callSession || callSessionFallback;
+
+      if (sessionValue) {
+        // 4. Prevent the default paste behavior and set the state
+        e.preventDefault();
+        setSessionId(sessionValue);
+      }
+    } catch (err) {}
+  };
 
   return (
     <>
@@ -79,20 +96,25 @@ const StartCall: FC<IProps> = ({
             {t("select_call_type")}
           </AppTypo>
           <div className="flex gap-2">
-            <CallTypeButton
+            <Button
+              variant="outline"
               icon={sharedIcons.call}
-              label={t("audio_call")}
-              isActive={callType === "audio"}
+              selected={callType === "audio"}
               onClick={() => setCallType("audio")}
               disabled={isLoading}
-            />
-            <CallTypeButton
+              className="flex-1"
+            >
+              {t("audio_call")}
+            </Button>
+            <Button
               icon={sharedIcons.video}
-              label={t("video_call")}
-              isActive={callType === "video"}
+              selected={callType === "video"}
               onClick={() => setCallType("video")}
               disabled={isLoading}
-            />
+              className="flex-1"
+            >
+              {t("video_call")}
+            </Button>
           </div>
         </div>
 
@@ -128,6 +150,7 @@ const StartCall: FC<IProps> = ({
               onChange={e => setSessionId(e.target.value)}
               placeholder={t("session_id_placeholder")}
               disabled={isLoading}
+              onPaste={handlePaste}
             />
             <Button
               onClick={join}
@@ -146,31 +169,3 @@ const StartCall: FC<IProps> = ({
 };
 
 export default StartCall;
-
-/* ---------- Sub-component ---------- */
-
-const CallTypeButton: FC<{
-  icon: string;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}> = ({ icon, label, isActive, onClick, disabled }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    className={cn(
-      "flex-1 flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 transition-colors",
-      isActive
-        ? "border-primary bg-primary/10 text-primary"
-        : "border-border bg-background hover:bg-muted text-foreground-light",
-      disabled && "opacity-50 cursor-not-allowed",
-    )}
-  >
-    <AppIcon icon={icon} className="size-4" />
-    <AppTypo variant="small" className="font-medium">
-      {label}
-    </AppTypo>
-  </button>
-);

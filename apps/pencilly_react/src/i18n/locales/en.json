@@ -776,6 +776,7 @@
     "deny": "Deny"
   },
   "meet": {
+    "agent_thinking": "Agent is thinking...",
     "new_call": "Start New Call",
     "connecting_ws": "Connecting to server...",
     "ws_connected": "Connected",
@@ -820,6 +821,7 @@
       "select_call_type": "Select call type"
     },
     "chat": {
+      "join_meet": "Join Meet",
       "group_name_placeholder": "Group name...",
       "edit_group_name": "Edit group name",
       "voice_call": "Voice Call",
@@ -834,11 +836,15 @@
       "ai_assistant": "AI Assistant",
       "mention_ai": "Mention AI for help",
       "no_match": "No matches found.",
+      "only_one_decorator": "Only one decorator can be used at a time.",
       "info": {
         "title": "Info",
         "back": "Back",
         "call": "Call",
+        "voice_call": "Voice Call",
         "delete": "delete",
+        "delete_member": "Delete Member",
+        "delete_member_confirm": "Are you sure you want to remove this member from the conversation?",
         "mute": "Mute",
         "unmute": "Unmute",
         "settings": "Settings",
@@ -885,6 +891,7 @@
       "call_ended": "Call Ended"
     },
     "conversation": {
+      "you": "You",
       "no_messages_yet": "No Messages Yet.",
       "unknown": "Unknown",
       "online": "Online",
@@ -909,6 +916,12 @@
       "delete_message_failed": "Failed to delete message"
     },
     "call": {
+      "leave": "Leave",
+      "email_invite_placeholder": "Enter email to invite...",
+      "email_invite": "Invite via Email",
+      "link_copied": "Call link copied!",
+      "raise_hand": "Raise Hand",
+      "lower_hand": "Lower Hand",
       "me": "Me",
       "pin": "Pin",
       "unpin": "Unpin",

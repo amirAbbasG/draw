@@ -56,7 +56,7 @@ function ConfirmAlert({
     <Dialog open={isOpn} onOpenChange={setIsOpn}>
       <RenderIf isTrue={!!children}>
         <DialogTrigger onClick={() => setIsOpn(!isOpn)} className={"w-full " + className} asChild>
-          <span>{children}</span>
+          <span onClick={e =>  e.stopPropagation()}>{children}</span>
         </DialogTrigger>
       </RenderIf>
       <DialogContent className={cn(

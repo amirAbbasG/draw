@@ -5,10 +5,10 @@ import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
 
-import type { PendingParticipant } from "../types";
+import type { MeetUser } from "../types";
 
 interface PendingParticipantTileProps {
-  participant: PendingParticipant;
+  participant: MeetUser & { addedAt: number };
   className?: string;
 }
 
@@ -34,23 +34,26 @@ const PendingParticipantTile: FC<PendingParticipantTileProps> = ({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-lg bg-muted flex items-center justify-center",
+        "relative overflow-hidden border border-primary rounded-lg bg-background-dark centered-row animate-pulse p-2",
         className,
       )}
     >
-      <div className="col items-center gap-3">
+      <div className="col items-center gap-2">
         <div className="animate-pulse">
           <UserAvatar
-            imageSrc={participant.profileImageUrl ?? undefined}
-            name={participant.name}
-            className="size-16 sm:size-20 text-base opacity-60"
+            imageSrc={participant.avatarUrl ?? undefined}
+            name={participant.username}
+            className="size-10 sm:size-14 text-base "
           />
         </div>
         <div className="col items-center gap-1">
-          <AppTypo variant="small" color="secondary" className="truncate max-w-[120px]">
-            {participant.name}
+          <AppTypo
+            variant="small"
+            className="truncate max-w-[120px]"
+          >
+            {participant.name || participant.username}
           </AppTypo>
-          <AppTypo variant="xs" color="muted">
+          <AppTypo variant="xs" color="secondary">
             {t("pending_join")} {elapsed}s
           </AppTypo>
         </div>

@@ -16,6 +16,7 @@ export const ConversationAvatar: FC<ConversationAvatarProps> = ({
   avatarUrl,
   members,
 }) => {
+
   if (isGroup) {
     if (avatarUrl) {
       return (

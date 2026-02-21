@@ -1,15 +1,22 @@
 import React, { type FC } from "react";
 
-import AddUserPopup from "@/components/features/meet/call/AddUserPopup";
+import { useMediaQuery } from "usehooks-ts";
+
 import LayoutSelector from "@/components/features/meet/call/LayoutSelector";
 import { GridSettings } from "@/components/features/meet/call/types";
-import type { MeetUser } from "@/components/features/meet/types";
 import EmojiPicker from "@/components/shared/EmojiPicker";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
-import {useMediaQuery} from "usehooks-ts";
+import AddUserPopup from "@/components/features/meet/AddUserPopup";
+import {MeetUser} from "@/components/features/meet/types";
+
+const classes = {
+  default: "border-primary text-primary",
+  danger: "border-danger text-danger",
+  success: "border-success text-success",
+} as const;
 
 interface CallActionsProps {
   isMicMuted: boolean;
@@ -21,15 +28,20 @@ interface CallActionsProps {
   onToggleCamera: () => void;
   onToggleScreenShare: () => void;
   onReaction: (emoji: string) => void;
+  toggleRaiseHand: () => void;
   onChat: () => void;
   onEndCall: () => void;
   className?: string;
   gridSettings: GridSettings;
   onGridSettingsChange: (settings: GridSettings) => void;
   isOpenSidebar?: boolean;
+  isRaisedHand?: boolean;
+  onInvite: (user: MeetUser) => void;
 }
 
-const Divider = () => <div className="h-6 sm:h-8 md:h-10 w-[1px] bg-background" />;
+const Divider = () => (
+  <div className="h-6 sm:h-8 md:h-10 w-[1px] bg-background" />
+);
 
 const CallActions: FC<CallActionsProps> = ({
   isMicMuted,
@@ -42,11 +54,14 @@ const CallActions: FC<CallActionsProps> = ({
   onToggleScreenShare,
   onReaction,
   onChat,
-isOpenSidebar,
+  isOpenSidebar,
   onEndCall,
   className,
   gridSettings,
   onGridSettingsChange,
+  isRaisedHand,
+  toggleRaiseHand,
+    onInvite
 }) => {
   const t = useTranslations("meet.call");
   const isSm = useMediaQuery("(max-width: 640px)"); // sm breakpoint
@@ -55,11 +70,25 @@ isOpenSidebar,
 
   const isCompact = isOpenSidebar ? isXl : isSm;
 
-
-  const commonProps = {
-    size: isMobile ? ("sm" as const) :  isCompact ? ("default" as const) : ("xl" as const),
-    variant: "fill" as const,
-    color: "background" as const,
+  const getCommonProps = (
+    selected?: boolean,
+    color: "default" | "danger" | "success" = "default",
+    extraClass?: string,
+  ) => {
+    return {
+      size: isMobile
+        ? ("sm" as const)
+        : isCompact
+          ? ("default" as const)
+          : ("xl" as const),
+      variant: "fill" as const,
+      color: "background" as const,
+      className: cn(
+        "border transition-colors duration-200",
+        selected ? classes[color] : "border-transparent",
+        extraClass,
+      ),
+    };
   };
 
   return (
@@ -72,8 +101,7 @@ isOpenSidebar,
       {/* Mic */}
       <AppIconButton
         icon={isMicMuted ? sharedIcons.mic_off : sharedIcons.mic}
-        {...commonProps}
-        iconClassName={isMicMuted ? "text-danger" : ""}
+        {...getCommonProps(isMicMuted, "danger")}
         title={isMicMuted ? t("unmute_mic") : t("mute_mic")}
         onClick={onToggleMic}
       />
@@ -81,8 +109,7 @@ isOpenSidebar,
       {/* Volume */}
       <AppIconButton
         icon={isVolumeMuted ? "hugeicons:volume-off" : sharedIcons.speak}
-        {...commonProps}
-        iconClassName={isVolumeMuted ? "text-danger" : ""}
+        {...getCommonProps(isVolumeMuted, "danger")}
         title={isVolumeMuted ? t("unmute_volume") : t("mute_volume")}
         onClick={onToggleVolume}
       />
@@ -90,8 +117,7 @@ isOpenSidebar,
       {/* Camera */}
       <AppIconButton
         icon={isCameraMuted ? sharedIcons.video_off : sharedIcons.video}
-        {...commonProps}
-        iconClassName={isCameraMuted ? "text-danger" : ""}
+        {...getCommonProps(isCameraMuted, "danger")}
         title={isCameraMuted ? t("turn_on_camera") : t("turn_off_camera")}
         onClick={onToggleCamera}
       />
@@ -103,8 +129,7 @@ isOpenSidebar,
             ? sharedIcons.screen_share_off
             : sharedIcons.screen_share
         }
-        {...commonProps}
-        iconClassName={isScreenSharing ? "text-success" : ""}
+        {...getCommonProps(isScreenSharing, "success")}
         title={isScreenSharing ? t("stop_sharing") : t("share_screen")}
         onClick={onToggleScreenShare}
       />
@@ -113,24 +138,33 @@ isOpenSidebar,
 
       {/* Reactions (hidden on small screens) */}
       {/*{!isCompact && (*/}
-        <EmojiPicker
-          onChange={onReaction}
-          reactionsDefaultOpen
-          Trigger={
-            <AppIconButton
-              icon="hugeicons:smile"
-              {...commonProps}
-              title={t("reactions")}
-              element="div"
-            />
-          }
-        />
+      <EmojiPicker
+        onChange={onReaction}
+        reactionsDefaultOpen
+        closeOnEmojiSelect
+        Trigger={
+          <AppIconButton
+            icon="hugeicons:smile"
+            {...getCommonProps()}
+            title={t("reactions")}
+            element="div"
+          />
+        }
+      />
+
+      <AppIconButton
+        icon="ion:hand-left-outline"
+        {...getCommonProps(isRaisedHand, "success")}
+        title={t(isRaisedHand ? "lower_hand" : "raise_hand")}
+        onClick={toggleRaiseHand}
+        iconClassName={cn(" [&_path]:stroke-[25]")}
+      />
       {/*)}*/}
 
       {/* Chat */}
       <AppIconButton
         icon={sharedIcons.chat}
-        {...commonProps}
+        {...getCommonProps()}
         title={t("chat")}
         onClick={onChat}
       />
@@ -143,22 +177,20 @@ isOpenSidebar,
         />
       )}
 
-      {/* Add User (hidden on small screens) */}
-      {/*  <AddUserPopup*/}
-      {/*    friends={friends}*/}
-      {/*    onInvite={() => {}}*/}
-      {/*    onSendEmailInvite={() => {}}*/}
-      {/*    triggerProps={commonProps}*/}
-      {/*  />*/}
+
+        <AddUserPopup
+          onInvite={onInvite}
+          triggerProps={getCommonProps()}
+        />
 
       <Divider />
 
       {/* End Call */}
       <AppIconButton
         icon={sharedIcons.call_end}
-        {...commonProps}
+        {...getCommonProps()}
         color="danger"
-        title={t("end_call")}
+        title={t("leave")}
         onClick={onEndCall}
       />
     </div>

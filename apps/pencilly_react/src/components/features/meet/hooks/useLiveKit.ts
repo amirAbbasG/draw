@@ -8,8 +8,6 @@ import type {
 } from "@/components/features/call/types";
 import { useTranslations } from "@/i18n";
 
-
-
 interface UseLiveKitOptions {
   onStatusChange?: (status: string) => void;
 }
@@ -24,15 +22,14 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const [micMuted, setMicMuted] = useState(false);
   const [cameraMuted, setCameraMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isVolumeMuted, setIsVolumeMuted] = useState(false)
 
   const isAnyoneSharing = remoteTracks.some((t) => t.kind === "video" && t.source === "screen")
-
 
   const roomRef = useRef<any>(null);
   const livekitRef = useRef<any>(null);
   const screenTrackRef = useRef<any>(null);
   const localTracksRef = useRef<any[]>([]);
-  // Map of track SID → HTMLAudioElement for remote audio playback
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const status = useCallback(
@@ -70,9 +67,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     return livekit;
   }, []);
 
-  // Helper to parse participant metadata for profile image
   const getProfileImageFromMetadata = (participant: any): string | undefined => {
-    // Try multiple places the SDK might put metadata
     const raw = participant?.metadata ?? participant?.info?.metadata;
     if (!raw || typeof raw !== "string" || raw.trim() === "") return undefined;
 
@@ -80,14 +75,13 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
       const metadata = JSON.parse(raw);
       return metadata?.profileImage || metadata?.profile_image_url;
     } catch {
-      // Not JSON or invalid, ignore
       return undefined;
     }
   };
 
-
+  // NOTE: added options.publishVideo to control whether video tracks are created/published
   const join = useCallback(
-      async (livekitUrl: string, token: string, displayName?: string, profileImage?: string) => {
+      async (livekitUrl: string, token: string, displayName?: string, profileImage?: string, options?: { publishVideo?: boolean }) => {
         try {
           setConnectionState("connecting");
           status(t("loading"));
@@ -102,7 +96,6 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
           const room = new livekit.Room();
           roomRef.current = room;
 
-          // ✅ Set up all event listeners BEFORE connecting
           room.on(
               livekit.RoomEvent.TrackSubscribed,
               (track: any, pub: any, participant: any) => {
@@ -118,19 +111,15 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
 
                   const mediaStreamTrack = track.mediaStreamTrack || track.track;
 
-                  // Attach remote audio tracks to hidden <audio> elements for playback
                   if (track.kind === "audio" && mediaStreamTrack) {
                     const audioEl = document.createElement("audio");
                     audioEl.autoplay = true;
                     //@ts-ignore
                     audioEl.playsInline = true;
                     audioEl.srcObject = new MediaStream([mediaStreamTrack]);
-                    // Hidden but must be in the DOM for some browsers to play
                     audioEl.style.display = "none";
                     document.body.appendChild(audioEl);
-                    audioEl.play().catch(() => {
-                      /* autoplay may be blocked by browser policy */
-                    });
+                    audioEl.play().catch(() => {});
                     audioElementsRef.current.set(track.sid, audioEl);
                   }
 
@@ -152,7 +141,6 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
           );
 
           room.on(livekit.RoomEvent.TrackUnsubscribed, (track: any) => {
-            // Clean up any attached audio element
             const audioEl = audioElementsRef.current.get(track.sid);
             if (audioEl) {
               audioEl.pause();
@@ -163,9 +151,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
             setRemoteTracks(prev => prev.filter(t => t.sid !== track.sid));
           });
 
-          // Track muted/unmuted events
           room.on(livekit.RoomEvent.TrackMuted, (pub: any, _participant: any) => {
-            // Mute the hidden audio element if it exists
             const mutedAudioEl = audioElementsRef.current.get(pub.trackSid);
             if (mutedAudioEl) {
               mutedAudioEl.muted = true;
@@ -180,7 +166,6 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
           });
 
           room.on(livekit.RoomEvent.TrackUnmuted, (pub: any, _participant: any) => {
-            // Unmute the hidden audio element if it exists
             const unmutedAudioEl = audioElementsRef.current.get(pub.trackSid);
             if (unmutedAudioEl) {
               unmutedAudioEl.muted = false;
@@ -217,14 +202,17 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
               },
           );
 
-          // ✅ Connect to the room
           await room.connect(livekitUrl, token);
 
           status(t("publishing"));
+
+          // decide whether to publish video based on options.publishVideo (default true)
+          const publishVideo = options?.publishVideo !== false;
           const tracks = await livekit.createLocalTracks({
             audio: true,
-            video: true,
+            video: publishVideo,
           });
+
           localTracksRef.current = tracks;
 
           const newLocalTracks: LocalTrack[] = [];
@@ -235,10 +223,14 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
               track: track.mediaStreamTrack || track.track,
               sid: track.sid,
               muted: false,
+              source: (track.source ?? undefined) as any,
             });
           }
 
           setLocalTracks(newLocalTracks);
+
+          // If we didn't publish video, reflect camera muted state
+          setCameraMuted(!publishVideo);
 
           setParticipants([
             {
@@ -261,7 +253,6 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
             ]);
           });
 
-          // ✅ Set connected state LAST
           setConnectionState("connected");
           status("connected");
         } catch (err: any) {
@@ -273,11 +264,15 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
       [loadLiveKit, status, t],
   );
 
+
   const leave = useCallback(() => {
     if (screenTrackRef.current) {
+      const ref = screenTrackRef.current;
       try {
-        roomRef.current?.localParticipant?.unpublishTrack(screenTrackRef.current)
-        screenTrackRef.current.stop()
+        roomRef.current?.localParticipant?.unpublishTrack(ref)
+        if (typeof ref.stop === "function") ref.stop()
+        const raw = ref.mediaStreamTrack ?? ref.track;
+        if (raw && typeof raw.stop === "function") raw.stop()
       } catch {}
       screenTrackRef.current = null
     }
@@ -373,7 +368,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
       // Update local tracks to trigger re-render
       setLocalTracks(prev =>
           prev.map(t =>
-              t.kind === "video"
+              t.kind === "video" && t.source !== "screen"
                   ? { ...t, track: track.mediaStreamTrack || track.track }
                   : t
           )
@@ -400,15 +395,40 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     const livekit = livekitRef.current
 
     try {
-      // Use LiveKit's createLocalScreenTracks which properly sets the source
-      const screenTracks = await livekit.createLocalScreenTracks({
+      // Use getDisplayMedia directly with constraints that prevent tab capture.
+      // Allowing browser-tab capture causes an infinite mirror effect because
+      // the captured tab contains the <video> showing the capture itself.
+      // By restricting to monitor/window only we prevent this entirely for all
+      // participants (local AND remote).
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          // Prefer monitor or window – NOT browser tab
+          // @ts-ignore – displaySurface is valid but not in all TS definitions
+          displaySurface: "monitor",
+        },
         audio: false,
-        video: true,
-      })
+        // @ts-ignore – these are valid Chrome 107+ constraints
+        selfBrowserSurface: "exclude",
+        preferCurrentTab: false,
+        surfaceSwitching: "exclude",
+      } as any)
 
-      const screenTrack = screenTracks.find((t: any) => t.kind === "video")
-      if (!screenTrack) {
+      const mediaTrack = stream.getVideoTracks()[0]
+      if (!mediaTrack) {
         throw new Error("Failed to create screen track")
+      }
+
+      // Wrap the raw MediaStreamTrack in a LiveKit LocalVideoTrack so it can
+      // be published with the correct source metadata.
+      let screenTrack: any
+      const LVT = livekit.LocalVideoTrack
+      if (LVT) {
+        // LiveKit 2.x exposes LocalVideoTrack
+        screenTrack = new LVT(mediaTrack, undefined, false)
+      } else {
+        // Fallback: use createLocalScreenTracks as a factory then swap in our
+        // constrained track. This shouldn't normally happen with livekit 2.16.
+        screenTrack = mediaTrack
       }
 
       // Publish with explicit source option
@@ -419,20 +439,22 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
 
       screenTrackRef.current = screenTrack
 
-      const mediaTrack = screenTrack.mediaStreamTrack || screenTrack.track
+      const publishedMediaTrack =
+          screenTrack?.mediaStreamTrack ?? screenTrack?.track ?? mediaTrack
+
       setLocalTracks((prev) => [
         ...prev,
         {
           kind: "video",
-          track: mediaTrack,
-          sid: screenTrack.sid,
+          track: publishedMediaTrack,
+          sid: screenTrack?.sid ?? "local-screen",
           muted: false,
           source: "screen",
         },
       ])
 
       // Handle when user stops sharing via browser UI
-      mediaTrack?.addEventListener("ended", () => {
+      mediaTrack.addEventListener("ended", () => {
         stopScreenShare()
       })
 
@@ -447,9 +469,19 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const stopScreenShare = useCallback(() => {
     if (!roomRef.current || !screenTrackRef.current) return;
 
+    const ref = screenTrackRef.current;
     try {
-      roomRef.current.localParticipant.unpublishTrack(screenTrackRef.current);
-      screenTrackRef.current.stop();
+      roomRef.current.localParticipant.unpublishTrack(ref);
+      // Stop the track – it might be a LiveKit LocalVideoTrack or a raw
+      // MediaStreamTrack depending on which branch was used in startScreenShare.
+      if (typeof ref.stop === "function") {
+        ref.stop();
+      }
+      // Also stop the underlying MediaStreamTrack if it's a LiveKit wrapper
+      const raw = ref.mediaStreamTrack ?? ref.track;
+      if (raw && typeof raw.stop === "function") {
+        raw.stop();
+      }
     } catch {}
 
     screenTrackRef.current = null;
@@ -458,11 +490,34 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     status(t("screen_stopped"));
   }, [status]);
 
+  const toggleVolumeMuted = () => {
+    setIsVolumeMuted((prev) => {
+      const next = !prev;
+      // Apply immediately to existing audio elements
+      audioElementsRef.current.forEach((audioEl) => {
+        try {
+          audioEl.muted = next;
+        } catch {}
+      });
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    // Ensure all remote audio elements follow isVolumeMuted
+    audioElementsRef.current.forEach((audioEl) => {
+      try {
+        audioEl.muted = isVolumeMuted;
+      } catch {}
+    });
+  }, [isVolumeMuted]);
+
   useEffect(() => {
     return () => {
       leave();
     };
   }, []);
+
 
   return {
     connectionState,
@@ -478,6 +533,8 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     toggleCamera,
     startScreenShare,
     stopScreenShare,
+    isVolumeMuted,
+    toggleVolumeMuted,
     isAnyoneSharing
   };
 }

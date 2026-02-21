@@ -1,7 +1,13 @@
-import React, { useCallback, useRef, useState, type FC } from "react";
+import React, { useCallback, useState, type FC } from "react";
 
 import { useMediaQuery } from "usehooks-ts";
 
+import ConnectPending from "@/components/features/meet/call/ConnectPending";
+import PendingParticipantTile from "@/components/features/meet/call/PendingParticipantTile";
+import type { useConversationWs } from "@/components/features/meet/hooks";
+import { MeetUser } from "@/components/features/meet/types";
+import RenderIf from "@/components/shared/RenderIf";
+import { Show } from "@/components/shared/Show";
 import { cn } from "@/lib/utils";
 
 import CallFooter from "./CallFooter";
@@ -9,7 +15,6 @@ import CallGrid from "./CallGrid";
 import CallHeader from "./CallHeader";
 import CallMinimized from "./CallMinimized";
 import type {
-  CallOwner,
   CallParticipant,
   CallRoom,
   CallViewMode,
@@ -19,8 +24,6 @@ import type {
 interface CallViewProps {
   /** Current participants in the call */
   participants: CallParticipant[];
-  /** The call owner / current user */
-  owner: CallOwner;
   /** Room info */
   room: CallRoom;
   /** When the call started (Date.now() value) */
@@ -35,6 +38,8 @@ interface CallViewProps {
   isCameraMuted?: boolean;
   /** Real screen sharing state from LiveKit */
   isScreenSharing?: boolean;
+  isVolumeMuted?: boolean;
+  onToggleVolume?: () => void;
   /** Toggle mic via LiveKit */
   onToggleMic?: () => void;
   /** Toggle camera via LiveKit */
@@ -42,7 +47,7 @@ interface CallViewProps {
   /** Start/stop screen share via LiveKit */
   onToggleScreenShare?: () => void;
   /** Send a reaction (emoji/raise hand) */
-  onReaction?: (emoji: string) => void;
+  onReaction: ReturnType<typeof useConversationWs>["sendReaction"];
   /** Callback to toggle meet sidebar chat */
   onOpenChat?: () => void;
   /** Callback when call ends */
@@ -50,18 +55,18 @@ interface CallViewProps {
   /** Callback when call is closed (X button) */
   onClose?: () => void;
   /** Callback to invite a user */
-  onInviteUser?: (userId: string) => void;
-  /** Callback to send email invite */
-  onSendEmailInvite?: (email: string) => void;
+  onInviteUser: (user: MeetUser) => void;
   /** Callback to remove a participant */
   onRemoveParticipant?: (id: string) => void;
   className?: string;
   isOpenSidebar?: boolean;
+  activeConversationId: string;
+  pendingParticipants?: Array<MeetUser & { addedAt: number }>;
+  isConnecting?: boolean;
 }
 
 const CallView: FC<CallViewProps> = ({
   participants,
-  owner,
   room,
   startTime,
   isSidebarOpen = false,
@@ -73,19 +78,22 @@ const CallView: FC<CallViewProps> = ({
   onToggleCamera: onToggleCameraProp,
   onToggleScreenShare: onToggleScreenShareProp,
   onReaction: onReactionProp,
+  activeConversationId,
   onOpenChat,
   onEndCall,
   onClose,
   onRemoveParticipant,
   className,
-    isOpenSidebar
+  isOpenSidebar,
+  isConnecting,
+  pendingParticipants,
+  isVolumeMuted,
+  onToggleVolume,
+    onInviteUser,
 }) => {
   const isSmallScreen = useMediaQuery("(max-width: 640px)"); // sm breakpoint
-
   const [viewMode, setViewMode] = useState<CallViewMode>("maximized");
-  const [isVolumeMuted, setIsVolumeMuted] = useState(false);
   const [pinnedUserId, setPinnedUserId] = useState<string | null>(null);
-  const [reactions, setReactions] = useState<Record<string, string | null>>({});
   const [gridSettings, setGridSettings] = useState<GridSettings>({
     layout: "auto",
     maxTiles: 9,
@@ -96,43 +104,16 @@ const CallView: FC<CallViewProps> = ({
     ? { ...gridSettings, layout: "auto" }
     : gridSettings;
 
-  // Reaction timeout refs
-  const reactionTimeouts = useRef<
-    Record<string, ReturnType<typeof setTimeout>>
-  >({});
-
   const participantsWithState: CallParticipant[] = participants.map(p => ({
     ...p,
     isPinned: p.id === pinnedUserId,
     isCameraOff: p.isLocal ? isCameraMutedProp : p.isCameraOff,
     isMuted: p.isLocal ? isMicMutedProp : p.isMuted,
-    reaction: reactions[p.id] ?? null,
   }));
 
   const handlePin = useCallback((id: string) => {
     setPinnedUserId(prev => (prev === id ? null : id));
   }, []);
-
-  const handleReaction = useCallback(
-    (emoji: string) => {
-      // Show reaction on the current user's tile
-      setReactions(prev => ({ ...prev, [owner.id]: emoji }));
-
-      // Clear previous timeout if exists
-      if (reactionTimeouts.current[owner.id]) {
-        clearTimeout(reactionTimeouts.current[owner.id]);
-      }
-
-      // Auto-clear reaction after 3 seconds (not raise hand)
-      reactionTimeouts.current[owner.id] = setTimeout(() => {
-        setReactions(prev => ({ ...prev, [owner.id]: null }));
-      }, 3000);
-
-      // Send reaction to other participants via WS
-      onReactionProp?.(emoji);
-    },
-    [owner.id, onReactionProp],
-  );
 
   const handleMinimize = useCallback(() => {
     setViewMode("minimized");
@@ -147,10 +128,13 @@ const CallView: FC<CallViewProps> = ({
     onClose?.();
   }, [onEndCall, onClose]);
 
+  const owner = participants.find(p => p.isLocal);
+
   // Minimized view
   if (viewMode === "minimized") {
     // Find the speaking participant, or fallback to the first remote user
     const speakingUser =
+      participantsWithState.find(p => p.isLocal && p.isScreenSharing) ??
       participantsWithState.find(p => p.isSpeaking && !p.isLocal) ??
       participantsWithState.find(p => !p.isLocal) ??
       participantsWithState[0];
@@ -191,20 +175,41 @@ const CallView: FC<CallViewProps> = ({
           className="relative"
         />
 
+        <RenderIf isTrue={!!pendingParticipants?.length}>
+          <div className="absolute bottom-28 p-2 right-6 z-[101] col gap-2">
+            {pendingParticipants?.map(p => (
+              <PendingParticipantTile
+                key={p.id}
+                participant={p}
+                className="w-40 sm:w-48"
+              />
+            ))}
+          </div>
+        </RenderIf>
+
+        <Show>
+          <Show.When isTrue={isConnecting}>
+            <ConnectPending />
+          </Show.When>
+          <Show.Else>
+            <div className="flex-1 min-h-0 px-2 sm:px-4 pb-2">
+              <CallGrid
+                participants={participantsWithState}
+                onPin={handlePin}
+                onRemove={onRemoveParticipant}
+                className="h-full"
+                layout={effectiveGridSettings.layout}
+                maxTiles={effectiveGridSettings.maxTiles}
+                isLocalScreenSharing={isScreenSharingProp}
+              />
+            </div>
+          </Show.Else>
+        </Show>
         {/* Video Grid */}
-        <div className="flex-1 min-h-0 px-2 sm:px-4 pb-2">
-          <CallGrid
-            participants={participantsWithState}
-            onPin={handlePin}
-            onRemove={onRemoveParticipant}
-            className="h-full"
-            layout={effectiveGridSettings.layout}
-            maxTiles={effectiveGridSettings.maxTiles}
-          />
-        </div>
 
         {/* Footer */}
         <CallFooter
+            onInvite={onInviteUser}
           owner={owner}
           room={room}
           startTime={startTime}
@@ -213,12 +218,28 @@ const CallView: FC<CallViewProps> = ({
           isCameraMuted={isCameraMutedProp}
           isScreenSharing={isScreenSharingProp}
           onToggleMic={() => onToggleMicProp?.()}
-          onToggleVolume={() => setIsVolumeMuted(v => !v)}
+          onToggleVolume={onToggleVolume}
           onToggleCamera={() => onToggleCameraProp?.()}
-          onToggleScreenShare={() => onToggleScreenShareProp?.()}
+          onToggleScreenShare={() => {
+            onToggleScreenShareProp?.();
+            if (!isScreenSharingProp) {
+              setViewMode("minimized");
+            }
+          }}
           gridSettings={gridSettings}
           onGridSettingsChange={setGridSettings}
-          onReaction={handleReaction}
+          onReaction={emoji => {
+            if (!activeConversationId) return;
+            onReactionProp(activeConversationId, owner.id, "emoji", emoji);
+          }}
+          toggleRaiseHand={() => {
+            if (!activeConversationId) return;
+            onReactionProp(
+              activeConversationId,
+              owner.id,
+              owner.raisedHand ? "lower_hand" : "raise_hand",
+            );
+          }}
           onChat={() => onOpenChat?.()}
           onEndCall={() => {
             onEndCall?.();

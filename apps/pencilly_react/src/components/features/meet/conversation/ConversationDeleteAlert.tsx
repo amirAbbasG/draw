@@ -20,8 +20,8 @@ const ConversationDeleteAlert: FC<IProps> = ({
   onLeaveGroup,
   renderTrigger,
   isGroup,
-    open,
-    setOpen
+  open,
+  setOpen,
 }) => {
   const t = useTranslations("meet.conversation");
 
@@ -40,7 +40,7 @@ const ConversationDeleteAlert: FC<IProps> = ({
       contentClassName="z-100"
       isDanger
       open={open}
-        setOpen={setOpen}
+      setOpen={setOpen}
       Action={
         isOwner ? (
           <Button

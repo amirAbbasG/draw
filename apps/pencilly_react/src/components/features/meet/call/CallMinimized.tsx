@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, type FC } from "react";
+import React, { useCallback, type FC } from "react";
 
-import { useDraggable } from "@/components/features/meet/call/useDraggable";
+import { useDraggable } from "@/components/features/meet/hooks/useDraggable";
+import { usePlayMediaStream } from "@/components/features/meet/hooks";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,6 @@ const CallMinimized: FC<CallMinimizedProps> = ({
   className,
 }) => {
   const t = useTranslations("meet.call");
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const {
     handlePointerUp,
@@ -51,19 +51,10 @@ const CallMinimized: FC<CallMinimizedProps> = ({
     position,
   } = useDraggable(POPUP_WIDTH, POPUP_HEIGHT);
 
-  // Attach video track
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !participant.videoTrack) return;
-    el.srcObject = new MediaStream([participant.videoTrack]);
-    el.play().catch(() => {});
-    return () => {
-      if (el) el.srcObject = null;
-    };
-  }, [participant.videoTrack]);
-
-  const hasVideo =
-    !!participant.videoTrack && !participant.isCameraOff && !isCameraMuted;
+  const { isTrackExists, isTrackMuted, videoRef } = usePlayMediaStream(
+    participant.videoTrack,
+      participant.isScreenSharing && participant.screenTrack
+  );
 
   // Double-click to maximize
   const handleDoubleClick = useCallback(
@@ -96,15 +87,20 @@ const CallMinimized: FC<CallMinimizedProps> = ({
       onDoubleClick={handleDoubleClick}
     >
       {/* Video / Avatar background */}
-      {hasVideo ? (
+      {isTrackExists && (
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted={participant.isLocal}
-          className="absolute inset-0 h-full w-full object-cover"
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            isTrackMuted && "hidden",
+          )}
         />
-      ) : (
+      )}
+
+      {(isTrackMuted || !isTrackExists ) && (
         <div className="absolute inset-2 rounded centered-row ">
           <UserAvatar
             imageSrc={participant.avatarUrl}

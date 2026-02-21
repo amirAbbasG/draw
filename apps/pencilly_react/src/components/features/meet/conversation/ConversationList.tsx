@@ -4,13 +4,12 @@ import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
 
+import type { CallType, Conversation } from "../types";
 import ConversationCard from "./ConversationCard";
-import type { Conversation } from "../types";
 
 interface ConversationListProps {
   conversations: Conversation[];
-  onCall?: (conversation: Conversation) => void;
-  onVideoCall?: (conversation: Conversation) => void;
+  onCall: (conversation: Conversation, type: CallType) => void;
   onOpenChat?: (conversation: Conversation) => void;
   onLeave?: (conversation: Conversation) => void;
   onDelete?: (conversation: Conversation) => void;
@@ -21,7 +20,6 @@ interface ConversationListProps {
 const ConversationList: FC<ConversationListProps> = ({
   conversations,
   onCall,
-  onVideoCall,
   onOpenChat,
   onLeave,
   onDelete,
@@ -44,10 +42,9 @@ const ConversationList: FC<ConversationListProps> = ({
     <div className={cn("col", className)}>
       {conversations.map(conversation => (
         <ConversationCard
+          onCall={onCall}
           key={conversation.id}
           conversation={conversation}
-          onCall={onCall}
-          onVideoCall={onVideoCall}
           onLeave={onLeave}
           onDelete={onDelete}
           onMute={onMute}

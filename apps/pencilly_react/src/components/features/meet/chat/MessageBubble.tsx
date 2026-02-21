@@ -1,7 +1,9 @@
-import React, { useState, type FC } from "react";
+import React, { type FC } from "react";
 
+import { DotLoading } from "@/components/features/meet/chat/TypingIndicator";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import ConfirmAlert from "@/components/shared/ConfirmAlert";
+import RenderIf from "@/components/shared/RenderIf";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import AppTypo from "@/components/ui/custom/app-typo";
@@ -24,19 +26,19 @@ interface MessageBubbleProps {
   /** Called when user wants to delete this message */
   onDelete?: (message: ChatMessage) => void;
   className?: string;
+  replyToSenderName?: string;
 }
 
 const MessageBubble: FC<MessageBubbleProps> = ({
   message,
-  isGroup = false,
   highlightMentions = true,
   onReply,
   onEdit,
   onDelete,
+  replyToSenderName,
   className,
 }) => {
   const t = useTranslations("meet");
-  const [showActions, setShowActions] = useState(false);
   const {
     isCurrentUser,
     body,
@@ -46,37 +48,56 @@ const MessageBubble: FC<MessageBubbleProps> = ({
     editedAt,
     deletedAt,
     replyTo,
+    agentType,
+    type,
+      updatedAt
   } = message;
 
-  const senderName = actor?.name ?? "Unknown";
+  const isAgentMessage = type === "agent" && !!agentType;
+  const senderName = isAgentMessage
+    ? agentType.replaceAll("-", " ")
+    : (actor?.name ?? "Unknown");
   const senderAvatarUrl = actor?.profileImageUrl ?? undefined;
   const timeString = formatMessageTime(createdAt);
   const isDeleted = !!deletedAt;
   const isEdited = !!editedAt && !isDeleted;
+  const isRecentlyUpdated =
+      !!updatedAt && Date.now() - new Date(updatedAt).getTime() < 5 * 60 * 1000; // Consider messages updated within the last 5 minutes as "recently updated"
+
+const onClickReply = () => {
+  const el = document.getElementById(`message-${replyTo.id}`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const bubble = el.querySelector(".bubble");
+    bubble?.classList.add("ring-2", "ring-primary/50");
+    setTimeout(() => {
+      bubble?.classList.remove("ring-2", "ring-primary/50");
+    }, 2000);
+  }
+}
 
   return (
     <div
+        id={`message-${message.id}`}
       className={cn(
-        "flex gap-1 max-w-[85%] group relative",
+        "flex gap-1 max-w-[95%] group relative",
         isCurrentUser ? "ms-auto flex-row-reverse" : "me-auto",
         className,
       )}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
     >
       {/* Avatar for group + other users */}
-      {isGroup && !isCurrentUser && (
+      <RenderIf isTrue={!isCurrentUser}>
         <UserAvatar
           imageSrc={senderAvatarUrl}
           name={senderName}
           className="size-7 border text-xs shrink-0 mt-auto"
         />
-      )}
+      </RenderIf>
 
       {/* Bubble */}
       <div
         className={cn(
-          "col gap-1 rounded-lg px-3 py-2 relative",
+          "col gap-1 rounded-lg px-3 py-2 relative bubble",
           isCurrentUser
             ? "bg-primary-dark text-primary-foreground rounded-br-none"
             : "bg-background-lighter border rounded-bl-none",
@@ -85,36 +106,42 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       >
         {/* Reply reference */}
         {replyTo && !isDeleted && (
-          <div className="rounded px-2 py-1 mb-1 text-xs border-l-2 bg-muted border-primary">
-            <AppTypo
-              variant="xs"
-              color="primary"
-              className="font-medium text-primary truncate"
-            >
-              {replyTo.sender?.name ?? "Unknown"}
-            </AppTypo>
-            <AppTypo
-              variant="xs"
-              className={cn(
-                "truncate",
-                isCurrentUser
-                  ? "text-primary-foreground/80"
-                  : "text-foreground-light",
-              )}
-            >
-              {replyTo.body}
-            </AppTypo>
+          <div className="rounded-md  mb-1 text-xs   overflow-hidden cursor-pointer hover:bg-muted/50" onClick={onClickReply}>
+            <div className="col gap-[1px] border-primary border-l-[3px] px-2 py-1 bg-muted">
+              <AppTypo
+                variant="xs"
+                color="primary"
+                className="font-medium truncate first-letter:!capitalize"
+              >
+                {replyTo.sender?.name ?? replyToSenderName ?? "Unknown"}
+              </AppTypo>
+              <AppTypo variant="xs" color="secondary" className="truncate">
+                {replyTo.body}
+              </AppTypo>
+            </div>
           </div>
         )}
 
         {/* Sender name in group conversations */}
-        {isGroup && !isCurrentUser && !isDeleted && (
-          <AppTypo variant="xs" className="font-semibold text-primary">
+
+        <RenderIf isTrue={!isCurrentUser && !isDeleted}>
+          <AppTypo
+            variant="xs"
+            className="font-semibold text-primary first-letter:capitalize"
+          >
             {senderName}
           </AppTypo>
-        )}
+        </RenderIf>
 
         {/* Message text */}
+        <RenderIf isTrue={isAgentMessage && message.status === "pending" && isRecentlyUpdated}>
+          <div className="row gap-1 py-1">
+            <DotLoading className="px-0 py-0" />
+            <AppTypo variant="xs" color="secondary">
+              {t("agent_thinking")}
+            </AppTypo>
+          </div>
+        </RenderIf>
         <div
           className={cn(
             "text-sm leading-relaxed break-words whitespace-pre-wrap",
@@ -137,7 +164,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
               : "text-foreground-lighter",
           )}
         >
-          {isEdited && (
+          <RenderIf isTrue={isEdited}>
             <AppTypo
               variant="xs"
               className={cn(
@@ -147,7 +174,8 @@ const MessageBubble: FC<MessageBubbleProps> = ({
             >
               {t("message_edited")}
             </AppTypo>
-          )}
+          </RenderIf>
+
           <AppTypo
             variant="xs"
             className={cn(
@@ -156,15 +184,20 @@ const MessageBubble: FC<MessageBubbleProps> = ({
           >
             {timeString}
           </AppTypo>
-          {isCurrentUser && displayStatus && (
-            <MessageStatusIcon status={displayStatus} />
-          )}
+          <RenderIf
+            isTrue={
+              (isCurrentUser && !!displayStatus) ||
+              (!isCurrentUser && displayStatus && type === "agent")
+            }
+          >
+            <MessageStatusIcon status={displayStatus as any} />
+          </RenderIf>
         </div>
       </div>
 
       {/* Action buttons on hover - always on the outer side of the bubble */}
-      {showActions && !isDeleted && (
-        <div className="row gap-0.5 ">
+      {!isDeleted && (
+        <div className="row gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <ActionButton
             icon="hugeicons:message-incoming-01"
             title={t("reply")}
@@ -244,7 +277,8 @@ const MessageStatusIcon: FC<{ status: MessageStatus }> = ({ status }) => {
  */
 function renderWithMentions(text: string, isCurrentUser: boolean) {
   if (!text) return text;
-  const mentionRegex = /@(\w+)/g;
+  // Change: Added \. to the character class
+  const mentionRegex = /@([\w.]+)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;

@@ -1,4 +1,4 @@
-import type { ChatMessage } from "@/components/features/meet/types";
+import type {ChatMessage, Conversation, Decorator, MeetUser} from "@/components/features/meet/types";
 
 /**
  * Returns a human-readable date label for grouping messages.
@@ -89,4 +89,98 @@ export function formatElapsed(ms: number): string {
   const seconds = totalSeconds % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+
+/**
+ * Result returned by extractDecoratorsFromText
+ */
+export interface ExtractDecoratorsResult {
+  matches: {
+    decorator: Decorator;
+    index: number;
+    raw: string; // the raw matched text, e.g. "@ai"
+  }[];
+  ids: string[]; // unique decorator ids found
+  keys: string[]; // unique decorator keys found
+  count: number; // unique decorator count
+  valid: boolean; // true when at most one decorator is present
+  firstId?: string; // id of first found decorator (if any)
+  error?: string; // present when invalid (more than one decorator)
+}
+
+/**
+ * Extract decorators from `text` by matching @key tokens against the provided decorators.
+ * Only alphanumeric + underscore keys are considered (change the regex if your keys allow other chars).
+ */
+export function extractDecoratorsFromText(
+    text: string,
+    decorators: Decorator[]
+): ExtractDecoratorsResult {
+  const regex = /@([A-Za-z0-9_]+)/g;
+  const matches: ExtractDecoratorsResult["matches"] = [];
+
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(text)) !== null) {
+    const token = m[1];
+    const found = decorators.find(d => d.key.toLowerCase() === token.toLowerCase());
+    if (found) {
+      matches.push({
+        decorator: found as Decorator,
+        index: m.index,
+        raw: m[0],
+      });
+    }
+    // continue scanning (global regex)
+  }
+
+  const keys = Array.from(new Set(matches.map(x => x.decorator.key)));
+  const ids = Array.from(new Set(matches.map(x => x.decorator.id)));
+  const count = ids.length;
+  const valid = count <= 1;
+
+  return {
+    matches,
+    ids,
+    keys,
+    count,
+    valid,
+    firstId: ids[0],
+    error: valid ? undefined : "multiple_decorators_not_allowed",
+  };
+}
+
+/**
+ * Convenience helper: returns the single decorator id if valid, otherwise undefined.
+ */
+export function getSingleDecoratorId(
+    text: string,
+    decorators: Decorator[]
+): string | undefined {
+  const res = extractDecoratorsFromText(text, decorators);
+  return res.valid ? res.firstId : undefined;
+}
+
+export const createTemConversation = (user: MeetUser, me: MeetUser) => {
+  return  {
+    id: `temp-${user.id}`,
+    title: user.name,
+    avatarUrl: user.avatarUrl,
+    members: [user, me],
+    owner_id: Number(me.id),
+    role: "owner",
+    status: "active",
+    chat_state: "active",
+    call_state: "inactive",
+    collab_state: "inactive",
+    stream_state: "inactive",
+    next_seq: 0,
+    state_version: 0,
+    starts_at: null,
+    ended_at: null,
+    last_event_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    muted: false,
+  } as Conversation
 }

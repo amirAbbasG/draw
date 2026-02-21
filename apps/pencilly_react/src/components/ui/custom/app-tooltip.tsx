@@ -113,6 +113,7 @@ export const AppTooltip = ({
           className={cn(
             "!z-100 max-md:hidden ",
             variants({ variant: "bg", color }),
+            !title && "hidden",
             contentClass,
           )}
         >

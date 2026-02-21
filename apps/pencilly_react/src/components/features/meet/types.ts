@@ -4,6 +4,7 @@ export interface Actor {
   id: number;
   name: string;
   profileImageUrl?: string | null;
+  username?: string;
 }
 
 /** Lightweight user reference used across meet UI */
@@ -12,6 +13,9 @@ export interface MeetUser {
   name: string;
   avatarUrl?: string;
   username: string;
+  isCurrentUser?: boolean;
+  convesation_id?: string | number;
+  commen_convesations?: string[]
 }
 
 // ─── Conversation ───────────────────────────────────────────────────────────
@@ -33,6 +37,7 @@ export interface Conversation {
   last_event_at: string | null;
   created_at: string;
   updated_at: string;
+  muted: boolean;
 
   // API-provided enrichment fields
   unread_count?: number;
@@ -40,14 +45,10 @@ export interface Conversation {
 
   // Client-side enrichments (not from API directly)
   members?: MeetUser[];
-  lastMessage?: {
-    text: string;
-    senderName: string;
-    timestamp: string;
-  };
+  last_message?: ChatMessage
+  last_message_at: string,
   unseenCount?: number;
   isOnline?: boolean;
-  isMuted?: boolean;
   isGroup?: boolean;
   avatarUrl?: string;
 }
@@ -62,7 +63,12 @@ export interface ConversationListResponse {
 
 // ─── Chat Message / Event ───────────────────────────────────────────────────
 
-export type MessageStatus = "pending" | "sent" | "delivered" | "read" | "failed";
+export type MessageStatus =
+  | "pending"
+  | "sent"
+  | "delivered"
+  | "read"
+  | "failed";
 
 export interface ReplyTo {
   id: string;
@@ -83,6 +89,7 @@ export interface ChatMessage {
   actor?: Actor;
   body: string;
   payload?: Record<string, any>;
+  agentType?: string | null;
   clientEventId?: string;
   createdAt: string;
   updatedAt: string;
@@ -97,13 +104,43 @@ export interface ChatMessage {
 
 // ─── Conversation Event Envelope (WS) ──────────────────────────────────────
 
+export interface ConversationAI {
+  sourceEventId: string;
+  prompt: string;
+  error?: string
+  provider?: string
+}
+
+export interface ConversationActivity {
+  id: string
+  conversation_id: string
+  kind: string
+  status: string
+  provider: string
+  provider_room_id: string
+  started_by_user_id: number
+  started_event_id: string
+  ended_event_id: any
+  started_at: string
+  ended_at: any
+  payload: ActivityPayload
+  created_at: string
+  updated_at: string
+}
+
+export interface ActivityPayload {
+  roomName: string
+  sessionId: string
+}
+
+
 export interface ConversationEventPayload {
   id: string;
   conversationId: string;
   seq: number;
-  type: "message" | "system" | "activity" | "state";
+  type: "message" | "system" | "activity" | "state" | "agent";
   subtype: string;
-  status: string;
+  status: "done" | "pending" | "failed";
   senderUserId: number | null;
   isCurrentUser: boolean;
   actor?: Actor;
@@ -112,6 +149,8 @@ export interface ConversationEventPayload {
   clientEventId?: string;
   createdAt: string;
   updatedAt: string;
+  agentType?: string;
+  ai?: ConversationAI;
   editedAt?: string | null;
   deletedAt?: string | null;
 }
@@ -164,9 +203,36 @@ export interface WsErrorMessage {
   message: string;
 }
 
+export interface WsReactionMessage {
+  type: "conversation:reaction";
+  conversationId: string;
+  senderUserId: string;
+  identity: string;
+  text: string;
+  createdAt: string;
+  reactionType: ReactionType;
+}
+
 export interface WsPongMessage {
   type: "pong";
 }
+
+export interface WsCallInviteMessage {
+  type: "conversation:call_invite"
+  conversationId: string
+  activityId: string
+  sessionId: string
+  roomName: string
+  invitedBy: InvitedBy
+  createdAt: string
+}
+
+export interface InvitedBy {
+  id: number
+  name: string
+  profileImageUrl?: string | null
+}
+
 
 export type WsServerMessage =
   | WsConnectedMessage
@@ -176,7 +242,9 @@ export type WsServerMessage =
   | WsUpsertMessage
   | WsReadUpdatedMessage
   | WsErrorMessage
-  | WsPongMessage;
+  | WsPongMessage
+  | WsReactionMessage
+  | WsCallInviteMessage
 
 // ─── Activity ──────────────────────────────────────────────────────────────
 
@@ -247,6 +315,8 @@ export interface ConversationMember {
   first_name: string;
   last_name: string;
   profile_image_url?: string;
+  convesation_id?: string | number;
+  commen_convesations?: string[]
 }
 
 export interface ConversationMembersResponse {
@@ -279,4 +349,29 @@ export interface ChatGroupSettings {
     chatDuringMeetingOnly: boolean;
     allowRecording: boolean;
   };
+}
+
+export type ReactionType = "emoji" | "raise_hand" | "lower_hand";
+
+export interface Decorator {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  key: string; // the value inserted into the chat input when selected
+}
+
+
+export interface UserSearchResponse {
+  query: string
+  exact: boolean
+  match_type: string
+  results: SearchUser[]
+}
+
+export interface SearchUser {
+  id: number
+  username: string
+  email: string
+  profile_image_url: string
 }

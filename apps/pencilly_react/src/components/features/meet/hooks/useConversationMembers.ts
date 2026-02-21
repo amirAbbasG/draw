@@ -2,28 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useUser } from "@/stores/context/user";
 
+import type { ConversationEvent, ConversationMember, MeetUser } from "../types";
 import { useConversationApi } from "./useConversationApi";
-import type { ConversationMember, MeetUser } from "../types";
-
-interface UseConversationMembersReturn {
-  /** All members (excluding current user) */
-  members: MeetUser[];
-  /** All raw members (including current user) for chat info */
-  allMembers: MeetUser[];
-  /** Whether loading */
-  isLoading: boolean;
-  /** Members for mention in chat (username-based, excludes current user) */
-  mentionMembers: { username: string; displayName: string; avatarUrl?: string }[];
-  /** Refetch members */
-  refetch: () => Promise<void>;
-}
 
 /**
  * Fetches and manages conversation members.
  * - Filters out the current user for mention list
  * - Uses first_name + last_name for display, falls back to username
  */
-export function useConversationMembers(conversationId: string | null): UseConversationMembersReturn {
+export function useConversationMembers(conversationId: string | null) {
   const [rawMembers, setRawMembers] = useState<ConversationMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const api = useConversationApi();
@@ -41,48 +28,68 @@ export function useConversationMembers(conversationId: string | null): UseConver
   }, [conversationId, api]);
 
   useEffect(() => {
-    if (!conversationId || conversationId === prevConversationId.current) return;
+    if (!conversationId || conversationId === prevConversationId.current)
+      return;
     prevConversationId.current = conversationId;
     void fetchMembers();
   }, [conversationId, fetchMembers]);
 
+  // console.log(rawMembers)
   /** Convert a raw member to a MeetUser for display */
-  const toMeetUser = useCallback((m: ConversationMember): MeetUser => {
-    const displayName = m.first_name
-      ? `${m.first_name} ${m.last_name ?? ""}`.trim()
-      : m.username;
-    return {
-      id: String(m.id),
-      name: displayName,
-      avatarUrl: m.profile_image_url,
-      username: m.username
-    };
-  }, []);
+  const toMeetUser = useCallback(
+    (m: ConversationMember): MeetUser => {
+      const displayName = m.first_name
+        ? `${m.first_name} ${m.last_name ?? ""}`.trim()
+        : m.username;
+      return {
+        ...m,
+        id: String(m.id),
+        name: displayName,
+        avatarUrl: m.profile_image_url,
+        isCurrentUser: m.username === user?.username,
+      };
+    },
+    [user],
+  );
 
   /** All members for chat info (including current user) */
   const allMembers = rawMembers.map(toMeetUser);
 
-  /** Members excluding current user */
-  const members = rawMembers
-    .filter(m => m.username !== user?.username)
-    .map(toMeetUser);
+  const removeMember = (id: string) => {
+    setRawMembers(prev => prev.filter(m => String(m.id) !== id));
+  };
 
-  /** Mention members (username-based, excludes current user) */
-  const mentionMembers = rawMembers
-    .filter(m => m.username !== user?.username)
-    .map(m => ({
-      username: m.username,
-      displayName: m.first_name
-        ? `${m.first_name} ${m.last_name ?? ""}`.trim()
-        : m.username,
-      avatarUrl: m.profile_image_url,
-    }));
+  const handleMembersMessageEvent = useCallback(
+    (event: ConversationEvent) => {
+      const { conversationId, event: evt } = event;
+
+      if (evt.type === "system") {
+        if (!conversationId) return;
+        if (
+          evt.subtype === "member_removed" &&
+          evt.payload?.removedUser?.username !== user?.username
+        ) {
+          removeMember(evt.payload.removedUser.id);
+        }
+        if (evt.subtype === "member_added" && evt.payload?.addedUser) {
+          setRawMembers(prev => {
+            // Avoid duplicates
+            if (prev.some(m => String(m.id) === String(evt.payload.addedUser?.id))) {
+              return prev;
+            }
+            return [...prev, evt.payload.addedUser];
+          });
+        }
+      }
+    },
+    [allMembers],
+  );
 
   return {
-    members,
     allMembers,
     isLoading,
-    mentionMembers,
     refetch: fetchMembers,
+    removeMember,
+    handleMembersMessageEvent,
   };
 }

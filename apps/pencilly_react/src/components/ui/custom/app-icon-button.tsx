@@ -129,7 +129,7 @@ const AppIconButton = forwardRef<HTMLButtonElement, IconProps>(
   ) => {
     const sizeIconList = {
       default: 18,
-      xs: 16,
+      xs: 14,
       sm: 18,
       lg: 20,
       xl: 20,
@@ -150,7 +150,9 @@ const AppIconButton = forwardRef<HTMLButtonElement, IconProps>(
         <AppIcon
           fontSize={sizeIconList[size]}
           icon={icon}
-          className={cn("[&_g]:stroke-[1.25] [&_path]:stroke-[1.25]", iconClassName)}
+          className={cn(
+              "[&_g]:stroke-[1.25] [&_path]:stroke-[1.25]",
+              iconClassName)}
         />
       </Comp>
     );

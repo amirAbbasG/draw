@@ -1,14 +1,8 @@
 import React, { FC } from "react";
 
-
-
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
-
-
-
-
 
 interface CallBoxProps {
   icon: string;

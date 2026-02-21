@@ -2,6 +2,7 @@ import React, { useEffect, useState, type FC } from "react";
 
 import { formatElapsed } from "@/components/features/meet/utils";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
+import RenderIf from "@/components/shared/RenderIf";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
@@ -9,10 +10,12 @@ import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
 import CallActions from "./CallActions";
-import type { CallOwner, CallRoom, GridSettings } from "./types";
+import type { CallParticipant, CallRoom, GridSettings } from "./types";
+import {useCopyTextInClipBoard} from "@/hooks/useCopyTextInClipBoard";
+import {MeetUser} from "@/components/features/meet/types";
 
 interface CallFooterProps {
-  owner: CallOwner;
+  owner: CallParticipant;
   room: CallRoom;
   startTime: number;
   // Action states
@@ -28,11 +31,13 @@ interface CallFooterProps {
   onToggleCamera: () => void;
   onToggleScreenShare: () => void;
   onReaction: (emoji: string) => void;
+  toggleRaiseHand: () => void;
   onChat: () => void;
   onEndCall: () => void;
   className?: string;
   onGridSettingsChange: (settings: GridSettings) => void;
   isOpenSidebar?: boolean;
+  onInvite: (user: MeetUser) => void;
 }
 
 const CallFooter: FC<CallFooterProps> = ({
@@ -48,15 +53,18 @@ const CallFooter: FC<CallFooterProps> = ({
   onToggleCamera,
   onToggleScreenShare,
   onReaction,
+  toggleRaiseHand,
   onChat,
   onEndCall,
   className,
   gridSettings,
   onGridSettingsChange,
   isOpenSidebar,
+    onInvite
 }) => {
   const t = useTranslations("meet.call");
   const [elapsed, setElapsed] = useState(0);
+  const [handleCopy, isCopied,] = useCopyTextInClipBoard()
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -65,20 +73,14 @@ const CallFooter: FC<CallFooterProps> = ({
     return () => clearInterval(interval);
   }, [startTime]);
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(room.link);
-    } catch {
-      // Fallback - do nothing
-    }
-  };
+
 
   return (
     <div
       className={cn(
         "flex flex-col  items-center justify-center px-2 md:px-4 py-2 shrink-0 gap-2",
         isOpenSidebar
-          ? "2xl:flex-row  2xl::justify-between"
+          ? "2xl:flex-row  2xl:justify-between"
           : "lg:flex-row  lg:justify-between",
         className,
       )}
@@ -91,13 +93,13 @@ const CallFooter: FC<CallFooterProps> = ({
         )}
       >
         <UserAvatar
-          imageSrc={owner.avatarUrl}
-          name={owner.name}
+          imageSrc={owner?.avatarUrl}
+          name={owner?.name}
           className="size-14 shrink-0"
         />
         <div className="col gap-1.5 min-w-0">
           <AppTypo variant="headingS" className="font-semibold truncate">
-            {owner.name}
+            {owner?.name}
           </AppTypo>
           <AppTypo variant="small" color="secondary">
             {formatElapsed(elapsed)}
@@ -107,6 +109,7 @@ const CallFooter: FC<CallFooterProps> = ({
 
       {/* Center: Actions */}
       <CallActions
+          onInvite={onInvite}
         isMicMuted={isMicMuted}
         isVolumeMuted={isVolumeMuted}
         isCameraMuted={isCameraMuted}
@@ -116,6 +119,8 @@ const CallFooter: FC<CallFooterProps> = ({
         onToggleCamera={onToggleCamera}
         onToggleScreenShare={onToggleScreenShare}
         onReaction={onReaction}
+        toggleRaiseHand={toggleRaiseHand}
+        isRaisedHand={owner?.raisedHand}
         onChat={onChat}
         onGridSettingsChange={onGridSettingsChange}
         gridSettings={gridSettings}
@@ -124,41 +129,49 @@ const CallFooter: FC<CallFooterProps> = ({
       />
 
       {/* Right: Room link (hidden on small screens) */}
-      <div
-        className={cn(
-          "col gap-2 shrink-0 min-w-0 max-w-full",
-          isOpenSidebar
-            ? "2xl:items-end  2xl::max-w-48"
-            : "lg:items-end  lg:max-w-48",
-        )}
-      >
-        <AppTypo
-          variant="headingS"
+      <RenderIf isTrue={!!room.link}>
+        <div
           className={cn(
-            "font-semibold hidden",
-            isOpenSidebar ? "2xl:block" : "lg:block",
+            "col gap-2 shrink-0 min-w-0 max-w-full",
+            isOpenSidebar
+              ? "2xl:items-end  2xl::max-w-48"
+              : "lg:items-end  lg:max-w-48",
           )}
         >
-          {t("room_link")}
-        </AppTypo>
-        <button
-          type="button"
-          className="flex items-center gap-1 hover:opacity-80 transition-opacity max-w-full"
-          onClick={handleCopyLink}
-          title={t("copy_link")}
-        >
-          <AppIcon
-            icon={sharedIcons.copy}
-            className="size-3.5 text-primary shrink-0"
-          />
           <AppTypo
-            variant="xs"
-            className="truncate underline underline-offset-2"
+            variant="headingS"
+            className={cn(
+              "font-semibold hidden",
+              isOpenSidebar ? "2xl:block" : "lg:block",
+            )}
           >
-            {room.link}
+            {t("room_link")}
           </AppTypo>
-        </button>
-      </div>
+          <button
+            type="button"
+            className="flex items-center gap-1 hover:opacity-80 transition-opacity max-w-full relative"
+            onClick={() => handleCopy(room.link)}
+            title={t("copy_link")}
+          >
+            <div className={cn(
+                "bg-primary text-primary-foreground text-sm px-4 py-2 absolute -top-9 start-1/2 -translate-x-1/2 rounded text-nowrap",
+                isCopied ? "block" : "hidden"
+            )}>
+              {t("link_copied")}
+            </div>
+            <AppIcon
+              icon={sharedIcons.copy}
+              className="size-3.5 text-primary shrink-0"
+            />
+            <AppTypo
+              variant="xs"
+              className="truncate underline underline-offset-2"
+            >
+              {room.link}
+            </AppTypo>
+          </button>
+        </div>
+      </RenderIf>
     </div>
   );
 };
