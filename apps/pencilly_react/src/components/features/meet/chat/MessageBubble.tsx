@@ -12,6 +12,7 @@ import { useTranslations } from "@/i18n";
 
 import type { ChatMessage, MessageStatus } from "../types";
 import { formatMessageTime } from "../utils";
+import AudioMessageBubble from "./AudioMessageBubble";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -53,6 +54,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       updatedAt
   } = message;
 
+  const isAudioMessage = message.subtype === "audio" && !!message.payload?.audioUrl;
   const isAgentMessage = type === "agent" && !!agentType;
   const senderName = isAgentMessage
     ? agentType.replaceAll("-", " ")
@@ -133,27 +135,40 @@ const onClickReply = () => {
           </AppTypo>
         </RenderIf>
 
-        {/* Message text */}
-        <RenderIf isTrue={isAgentMessage && message.status === "pending" && isRecentlyUpdated}>
-          <div className="row gap-1 py-1">
-            <DotLoading className="px-0 py-0" />
-            <AppTypo variant="xs" color="secondary">
-              {t("agent_thinking")}
-            </AppTypo>
-          </div>
-        </RenderIf>
-        <div
-          className={cn(
-            "text-sm leading-relaxed break-words whitespace-pre-wrap",
-            isCurrentUser ? "text-primary-foreground" : "text-foreground",
-          )}
-        >
-          {isDeleted
-            ? t("message_deleted")
-            : highlightMentions
-              ? renderWithMentions(body, isCurrentUser)
-              : body}
-        </div>
+        {/* Audio message */}
+        {isAudioMessage && !isDeleted ? (
+          <AudioMessageBubble
+            audioUrl={message.payload!.audioUrl}
+            durationMs={message.payload!.durationMs ?? 0}
+            fileSizeBytes={message.payload!.fileSizeBytes ?? 0}
+            mimeType={message.payload!.mimeType}
+            isCurrentUser={isCurrentUser}
+          />
+        ) : (
+          <>
+            {/* Message text */}
+            <RenderIf isTrue={isAgentMessage && message.status === "pending" && isRecentlyUpdated}>
+              <div className="row gap-1 py-1">
+                <DotLoading className="px-0 py-0" />
+                <AppTypo variant="xs" color="secondary">
+                  {t("agent_thinking")}
+                </AppTypo>
+              </div>
+            </RenderIf>
+            <div
+              className={cn(
+                "text-sm leading-relaxed break-words whitespace-pre-wrap",
+                isCurrentUser ? "text-primary-foreground" : "text-foreground",
+              )}
+            >
+              {isDeleted
+                ? t("message_deleted")
+                : highlightMentions
+                  ? renderWithMentions(body, isCurrentUser)
+                  : body}
+            </div>
+          </>
+        )}
 
         {/* Timestamp, edited label, and status */}
         <div

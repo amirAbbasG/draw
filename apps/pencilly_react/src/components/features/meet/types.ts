@@ -243,6 +243,31 @@ export interface InvitedBy {
 }
 
 
+export interface WsAudioUploadReadyMessage {
+  type: "audio:upload_ready";
+  uploadId: string;
+  conversationId: string;
+  maxChunkBytes: number;
+  frameFormat: string;
+  expiresAt: string;
+}
+
+export interface WsAudioUploadChunkAckMessage {
+  type: "audio:upload_chunk_ack";
+  uploadId: string;
+  seq: number;
+  receivedSizeBytes: number;
+}
+
+export interface WsAudioUploadCommittedMessage {
+  type: "audio:upload_committed";
+  uploadId: string;
+  conversationId: string;
+  messageId: string;
+  seq: number;
+  deduped: boolean;
+}
+
 export type WsServerMessage =
   | WsConnectedMessage
   | WsSubscribedMessage
@@ -254,6 +279,9 @@ export type WsServerMessage =
   | WsPongMessage
   | WsReactionMessage
   | WsCallInviteMessage
+  | WsAudioUploadReadyMessage
+  | WsAudioUploadChunkAckMessage
+  | WsAudioUploadCommittedMessage
 
 // ─── Activity ──────────────────────────────────────────────────────────────
 
@@ -287,7 +315,7 @@ export interface ReadByResponse {
   items: ReadReceipt[];
 }
 
-// ─── Messages API Response ─────────────────────────────────────────────────
+// ─── Messages API Response ──────────────���──────────────────────────────────
 
 export interface MessagesResponse {
   conversation_id: string;

@@ -126,7 +126,7 @@ export function useConversationWs(options: UseConversationWsOptions = {}) {
     [onMessage, deriveKeyForMessage],
   );
 
-  const { send, connectionState, disconnect, reconnect } = useWebSocket({
+  const { send, sendBinary, connectionState, disconnect, reconnect } = useWebSocket({
     url: wsUrl,
     enabled: enabled && isAuthenticated && !!wsUrl,
     onMessage: handleMessage,
@@ -205,6 +205,51 @@ export function useConversationWs(options: UseConversationWsOptions = {}) {
     [send],
   );
 
+  /* ── Audio upload helpers ── */
+
+  const sendAudioUploadInit = useCallback(
+    (payload: {
+      conversationId: string;
+      clientEventId: string;
+      mimeType: string;
+      fileSizeBytes: number;
+      durationMs: number;
+      replyTo?: string;
+    }): boolean => {
+      return send({
+        type: "audio:upload_init",
+        conversationId: payload.conversationId,
+        clientEventId: payload.clientEventId,
+        mimeType: payload.mimeType,
+        fileSizeBytes: payload.fileSizeBytes,
+        durationMs: payload.durationMs,
+        ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+      });
+    },
+    [send],
+  );
+
+  const sendAudioChunk = useCallback(
+    (uploadId: string, seq: number, chunkData: Uint8Array): boolean => {
+      const header = new TextEncoder().encode(`${uploadId}:${seq}|`);
+      const frame = new Uint8Array(header.length + chunkData.length);
+      frame.set(header, 0);
+      frame.set(chunkData, header.length);
+      return sendBinary(frame.buffer as ArrayBuffer);
+    },
+    [sendBinary],
+  );
+
+  const sendAudioUploadComplete = useCallback(
+    (uploadId: string): boolean => {
+      return send({
+        type: "audio:upload_complete",
+        uploadId,
+      });
+    },
+    [send],
+  );
+
   return {
     connectionState,
     subscribe,
@@ -212,9 +257,13 @@ export function useConversationWs(options: UseConversationWsOptions = {}) {
     sendMessage,
     markRead,
     send,
+    sendBinary,
     disconnect,
     reconnect,
     autoSubscribedIds,
     sendReaction,
+    sendAudioUploadInit,
+    sendAudioChunk,
+    sendAudioUploadComplete,
   };
 }

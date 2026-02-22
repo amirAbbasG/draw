@@ -26,6 +26,8 @@ export interface UseWebSocketOptions {
 export interface UseWebSocketReturn {
   /** Send a JSON-serializable message. Returns true if sent. */
   send: (data: Record<string, unknown>) => boolean;
+  /** Send binary data (ArrayBuffer). Returns true if sent. */
+  sendBinary: (data: ArrayBuffer) => boolean;
   /** Current connection state */
   connectionState: WsConnectionState;
   /** Manually disconnect */
@@ -185,6 +187,14 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     return false;
   }, []);
 
+  const sendBinary = useCallback((data: ArrayBuffer): boolean => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(data);
+      return true;
+    }
+    return false;
+  }, []);
+
   // Connect/disconnect based on enabled flag
   useEffect(() => {
     mountedRef.current = true;
@@ -208,6 +218,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
 
   return {
     send,
+    sendBinary,
     connectionState,
     disconnect,
     reconnect: manualReconnect,

@@ -8,7 +8,6 @@ import React, {
 
 import EditableDiv from "@/components/shared/EditableDiv";
 import EmojiPicker from "@/components/shared/EmojiPicker";
-import SpeechToText from "@/components/shared/SpeechToText";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import AppTypo from "@/components/ui/custom/app-typo";
@@ -17,7 +16,9 @@ import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
 import type { ChatMessage, MeetUser } from "../types";
+import type { AudioRecordingResult } from "../hooks/useAudioRecorder";
 import MentionPopup from "./MentionPopup";
+import VoiceRecorder, { type VoiceRecorderState } from "./VoiceRecorder";
 import {
   extractDecoratorsFromText,
   getCaretCharacterOffsetWithin,
@@ -28,6 +29,8 @@ import {decorators} from "@/components/features/meet/constants";
 interface ChatInputProps {
   members: MeetUser[];
   onSend: (text: string, replyToId?: string) => void;
+  /** Called when user sends a voice message */
+  onSendAudio?: (result: AudioRecordingResult) => void;
   /** Message being replied to */
   replyTo?: ChatMessage | null;
   /** Message being edited */
@@ -49,6 +52,7 @@ interface ChatInputProps {
 const ChatInput: FC<ChatInputProps> = ({
   members,
   onSend,
+  onSendAudio,
   replyTo,
   editingMessage,
   onCancelReply,
@@ -63,7 +67,9 @@ const ChatInput: FC<ChatInputProps> = ({
   const [value, setValue] = useState("");
   const [initialValue, setInitialValue] = useState("");
   const [mentionOpen, setMentionOpen] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceRecorderState>("idle");
   const divRef = useRef<HTMLDivElement>(null);
+  const isVoiceActive = voiceState !== "idle";
 
   // Pre-fill input when editing
   useEffect(() => {
@@ -287,54 +293,70 @@ const ChatInput: FC<ChatInputProps> = ({
         </div>
       )}
 
-      {/* Editable text area */}
-      <div className="px-3 pt-2.5 max-h-32 overflow-y-auto">
-        <EditableDiv
-          ref={divRef}
-          initialValue={initialValue}
-          onChange={val => {
-            if (!val.includes("@") && mentionOpen) {
-              setMentionOpen(false);
-            }
-          }}
-          onKeyUp={onKeyUp}
-          onKeydown={onKeyDown}
-          className="max-h-28 min-h-[36px] text-sm"
-          placeholder={placeholder}
-          inputText={value}
-          setInputText={setValue}
-        />
-      </div>
+      {/* Editable text area (hidden when voice recorder is active) */}
+      {!isVoiceActive && (
+        <div className="px-3 pt-2.5 max-h-32 overflow-y-auto">
+          <EditableDiv
+            ref={divRef}
+            initialValue={initialValue}
+            onChange={val => {
+              if (!val.includes("@") && mentionOpen) {
+                setMentionOpen(false);
+              }
+            }}
+            onKeyUp={onKeyUp}
+            onKeydown={onKeyDown}
+            className="max-h-28 min-h-[36px] text-sm"
+            placeholder={placeholder}
+            inputText={value}
+            setInputText={setValue}
+          />
+        </div>
+      )}
 
       {/* Footer toolbar */}
       <div className="flex items-center gap-1 px-2 pb-2 pt-1">
-        <AppIconButton
-          icon="iconoir:at-sign"
-          size="sm"
-          onClick={handleMentionButtonClick}
-          title={tChat("mention_user")}
-          iconClassName={mentionOpen ? "text-primary" : ""}
-        />
+        {isVoiceActive ? (
+          /* Voice recorder takes over the entire footer */
+          <VoiceRecorder
+            onSend={(result) => onSendAudio?.(result)}
+            onStateChange={setVoiceState}
+            disabled={disabled}
+            className="flex-1"
+          />
+        ) : (
+          <>
+            <AppIconButton
+              icon="iconoir:at-sign"
+              size="sm"
+              onClick={handleMentionButtonClick}
+              title={tChat("mention_user")}
+              iconClassName={mentionOpen ? "text-primary" : ""}
+            />
 
-        <EmojiPicker onChange={handleEmojiSelect} />
+            <EmojiPicker onChange={handleEmojiSelect} />
 
-        <SpeechToText
-          className="ms-auto"
-          transcript={value}
-          setTranscript={handleTranscript}
-          size="sm"
-        />
-
-        <AppIconButton
-          icon={sharedIcons.send}
-          size="sm"
-          variant="fill"
-          onClick={handleSend}
-          disabled={disabled || !value.trim() || textDecorators.count > 1}
-          title={tChat( textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
-          className="rounded-full"
-
-        />
+            <div className="ms-auto flex items-center gap-1">
+              {value.trim() ? (
+                <AppIconButton
+                  icon={sharedIcons.send}
+                  size="sm"
+                  variant="fill"
+                  onClick={handleSend}
+                  disabled={disabled || !value.trim() || textDecorators.count > 1}
+                  title={tChat(textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
+                  className="rounded-full"
+                />
+              ) : (
+                <VoiceRecorder
+                  onSend={(result) => onSendAudio?.(result)}
+                  onStateChange={setVoiceState}
+                  disabled={disabled}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

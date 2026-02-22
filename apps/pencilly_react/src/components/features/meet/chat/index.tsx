@@ -15,6 +15,7 @@ import AppTypo from "@/components/ui/custom/app-typo";
 import { cn, isEmpty } from "@/lib/utils";
 import { useTranslations } from "@/i18n";
 
+import type { AudioRecordingResult } from "../hooks/useAudioRecorder";
 import type {
   CallType,
   ChatMessage,
@@ -35,6 +36,8 @@ interface ChatViewProps {
   typingUsers?: string[];
   onBack: () => void;
   onSendMessage: (text: string, replyToId?: string) => void;
+  /** Send audio recording */
+  onSendAudio?: (result: AudioRecordingResult) => void;
   /** Edit a message via REST */
   onEditMessage?: (eventId: string, newText: string) => void;
   /** Delete a message via REST */
@@ -73,6 +76,7 @@ const ChatView: FC<ChatViewProps> = ({
   typingUsers,
   onBack,
   onSendMessage,
+  onSendAudio,
   onEditMessage,
   onDeleteMessage,
   onCall,
@@ -264,6 +268,7 @@ const ChatView: FC<ChatViewProps> = ({
               <ChatInput
                 members={apiMembers}
                 onSend={handleSend}
+                onSendAudio={onSendAudio}
                 replyTo={replyTo}
                 editingMessage={editingMessage}
                 onCancelReply={() => setReplyTo(null)}

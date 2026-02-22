@@ -6,3 +6,5 @@ export { useReadReceipts } from "./useReadReceipts";
 export { useMeetCall } from "./useMeetCall";
 export { useConversationMembers } from "./useConversationMembers";
 export { usePlayMediaStream } from "./usePlayMediaStream";
+export { useAudioRecorder } from "./useAudioRecorder";
+export { useAudioUpload } from "./useAudioUpload";

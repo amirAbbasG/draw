@@ -25,6 +25,7 @@ import { useTranslations } from "@/i18n";
 import type { CallRoom } from "./call/types";
 import Chat from "./chat";
 import ConversationPage from "./conversation";
+import { useAudioUpload } from "./hooks/useAudioUpload";
 import { useChatMessages } from "./hooks/useChatMessages";
 import { useConversationApi } from "./hooks/useConversationApi";
 import { useConversationMembers } from "./hooks/useConversationMembers";
@@ -129,6 +130,9 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
   const chatMessagesRef = useRef<ReturnType<typeof useChatMessages>>(null!);
   const readReceiptsRef = useRef<ReturnType<typeof useReadReceipts>>(null!);
 
+  // ─── Audio upload ref (declared early, set after WS is created) ──
+  const audioUploadRef = useRef<ReturnType<typeof useAudioUpload>>(null!);
+
   // ─── WS handler that dispatches to all sub-hooks ───────
   const handleWsMessage = useCallback(
     (message: WsServerMessage) => {
@@ -139,6 +143,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       handleMembersMessageEvent(message as ConversationEvent);
       chatMessagesRef.current?.handleWsMessage(message);
       readReceiptsRef.current?.handleWsMessage(message);
+      audioUploadRef.current?.handleWsMessage(message);
     },
     [handleConversationsWs, meetCall, handleMembersMessageEvent],
   );
@@ -155,6 +160,15 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
       : conversationWs.connectionState === "connecting"
         ? ("connecting" as const)
         : ("disconnected" as const);
+
+  // ─── Audio upload ───────────────────────────────────────
+  const audioUpload = useAudioUpload({
+    conversationId: activeConversation?.id ?? null,
+    sendAudioUploadInit: conversationWs.sendAudioUploadInit,
+    sendAudioChunk: conversationWs.sendAudioChunk,
+    sendAudioUploadComplete: conversationWs.sendAudioUploadComplete,
+  });
+  audioUploadRef.current = audioUpload;
 
   // ─── Chat messages ─────────────────────────────────────
   const chatMessages = useChatMessages({
@@ -456,6 +470,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
               onJoinCall={handleJoinCall}
               isTemp={!activeConversation && !!tempChat}
               onSendMessage={chatMessages.sendMessage}
+              onSendAudio={(result) => audioUpload.uploadAudio(result)}
               onEditMessage={chatMessages.editMessage}
               onDeleteMessage={chatMessages.deleteMessage}
               onCall={type => {
