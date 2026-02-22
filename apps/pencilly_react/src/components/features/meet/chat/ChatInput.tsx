@@ -316,15 +316,8 @@ const ChatInput: FC<ChatInputProps> = ({
 
       {/* Footer toolbar */}
       <div className="flex items-center gap-1 px-2 pb-2 pt-1">
-        {isVoiceActive ? (
-          /* Voice recorder takes over the entire footer */
-          <VoiceRecorder
-            onSend={(result) => onSendAudio?.(result)}
-            onStateChange={setVoiceState}
-            disabled={disabled}
-            className="flex-1"
-          />
-        ) : (
+        {/* Normal toolbar buttons: hidden when voice recorder is active */}
+        {!isVoiceActive && (
           <>
             <AppIconButton
               icon="iconoir:at-sign"
@@ -333,30 +326,33 @@ const ChatInput: FC<ChatInputProps> = ({
               title={tChat("mention_user")}
               iconClassName={mentionOpen ? "text-primary" : ""}
             />
-
             <EmojiPicker onChange={handleEmojiSelect} />
-
-            <div className="ms-auto flex items-center gap-1">
-              {value.trim() ? (
-                <AppIconButton
-                  icon={sharedIcons.send}
-                  size="sm"
-                  variant="fill"
-                  onClick={handleSend}
-                  disabled={disabled || !value.trim() || textDecorators.count > 1}
-                  title={tChat(textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
-                  className="rounded-full"
-                />
-              ) : (
-                <VoiceRecorder
-                  onSend={(result) => onSendAudio?.(result)}
-                  onStateChange={setVoiceState}
-                  disabled={disabled}
-                />
-              )}
-            </div>
           </>
         )}
+
+        {/* Send text button OR voice recorder: always in the trailing slot */}
+        <div className={cn("flex items-center gap-1", isVoiceActive ? "flex-1" : "ms-auto")}>
+          {value.trim() && !isVoiceActive ? (
+            <AppIconButton
+              icon={sharedIcons.send}
+              size="sm"
+              variant="fill"
+              onClick={handleSend}
+              disabled={disabled || !value.trim() || textDecorators.count > 1}
+              title={tChat(textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
+              className="rounded-full"
+            />
+          ) : (
+            /* Single VoiceRecorder instance -- always the same element so it
+               never unmounts when transitioning from idle -> recording -> etc. */
+            <VoiceRecorder
+              onSend={(result) => onSendAudio?.(result)}
+              onStateChange={setVoiceState}
+              disabled={disabled}
+              className={isVoiceActive ? "flex-1" : ""}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState, type FC } from "react"
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/i18n";
 
 /* ────────────── helpers ────────────── */
 
@@ -88,6 +89,7 @@ const AudioMessageBubble: FC<AudioMessageBubbleProps> = ({
   isCurrentUser,
   className,
 }) => {
+  const tVoice = useTranslations("meet.chat.voice");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [loaded, setLoaded] = useState(false);

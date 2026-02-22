@@ -838,6 +838,16 @@
       "no_match": "No matches found.",
       "only_one_decorator": "Only one decorator can be used at a time.",
       "chat_closed": " Chat is closed — you cannot view or send messages in this conversation.",
+      "voice": {
+        "hold_to_record": "Hold to record voice message",
+        "lock_recording": "Lock recording",
+        "stop_recording": "Stop recording",
+        "cancel_recording": "Cancel",
+        "discard": "Discard",
+        "send_voice": "Send voice message",
+        "recording": "Recording",
+        "voice_message": "Voice message"
+      },
       "info": {
         "title": "Info",
         "back": "Back",
