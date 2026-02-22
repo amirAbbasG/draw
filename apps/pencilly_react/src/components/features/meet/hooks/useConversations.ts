@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { showMessageNotification } from "@/components/features/meet/notification";
 import { useUser } from "@/stores/context/user";
 
+import { meetKeys } from "../query-keys";
 import type {
   Conversation,
   ConversationEvent,
@@ -14,7 +17,8 @@ import { useConversationApi } from "./useConversationApi";
 
 /**
  * Manages the conversation list.
- * Fetches from REST on mount, then applies real-time updates from WS events.
+ * Fetches from REST on mount via useQuery, then applies real-time updates from WS events
+ * by patching the React Query cache directly.
  *
  * - `unread_count` from API -> `unseenCount` on the conversation
  * - `member_count` from API -> `isGroup` (more than 2 = group)
@@ -22,43 +26,58 @@ import { useConversationApi } from "./useConversationApi";
  * - Resets unseenCount to 0 when user reads messages
  */
 export function useConversations(setIsOpen: (open: boolean) => void) {
-  const [activeConversation, setActiveConversation] =
-    useState<Conversation | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const api = useConversationApi();
   const { user } = useUser();
-  const hasFetched = useRef(false);
+
+  const [activeConversation, setActiveConversation] =
+    useState<Conversation | null>(null);
+
   const activeConvIdRef = useRef<string | null>(null);
   activeConvIdRef.current = activeConversation?.id ?? null;
-  const conversationsRef = useRef(conversations);
-  conversationsRef.current = conversations;
 
   /** Enrich a conversation from API with client-side computed fields */
   const enrichConversation = useCallback(
     (conv: Conversation): Conversation => ({
       ...conv,
       unseenCount: conv.unread_count ?? conv.unseenCount ?? 0,
-      isGroup: (conv.countMemebrs ?? 0) > 2,
+      isGroup: conv.type === "group" || conv.countMemebrs > 2,
+      profile_image_url: conv.profile_image_url || (conv as any).profile_image,
     }),
     [],
   );
 
-  const fetchAll = useCallback(async () => {
-    setIsLoading(true);
-    const response = await api.fetchConversations();
-    if (response?.items) {
-      setConversations(response.items.map(enrichConversation));
-    }
-    setIsLoading(false);
-  }, [api, enrichConversation]);
+  // ─── useQuery for conversation list ────────────────────
+  const {
+    data: conversations = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: meetKeys.conversations(),
+    queryFn: async () => {
+      const response = await api.fetchConversations();
+      return response?.items?.map(enrichConversation) ?? [];
+    },
+  });
 
-  useEffect(() => {
-    if (!hasFetched.current) {
-      hasFetched.current = true;
-      void fetchAll();
-    }
-  }, [fetchAll]);
+  // Keep a ref for WS callback closures that need the latest value
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
+
+  // ─── Cache helpers (replaces setConversations) ─────────
+
+  /** Update the cached conversation list. Accepts a callback or direct value, matching the
+   *  same (prev => newValue) signature that callers relied on via setConversations. */
+  const setConversations = useCallback(
+    (updater: Conversation[] | ((prev: Conversation[]) => Conversation[])) => {
+      queryClient.setQueryData<Conversation[]>(
+        meetKeys.conversations(),
+        (prev = []) =>
+          typeof updater === "function" ? updater(prev) : updater,
+      );
+    },
+    [queryClient],
+  );
 
   const updateConversation = useCallback(
     (id: string, updates: Partial<Conversation>) => {
@@ -66,22 +85,37 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
         prev.map(c => (c.id === id ? { ...c, ...updates } : c)),
       );
     },
-    [],
+    [setConversations],
   );
 
-  const removeConversation = useCallback((id: string) => {
-    setConversations(prev => prev.filter(c => c.id !== id));
-  }, []);
+  const removeConversation = useCallback(
+    (id: string) => {
+      setConversations(prev => prev.filter(c => c.id !== id));
+    },
+    [setConversations],
+  );
+
+  // ─── WS handlers ──────────────────────────────────────
 
   /** Handle incoming message event - update lastMessage + unseenCount on the conversation */
   const handleMessageEvent = useCallback(
     (event: ConversationEvent) => {
       const { conversationId, event: evt } = event;
 
-      if (evt.type === "system" && evt.subtype === "member_removed") {
-        const id = evt.conversationId;
-        if (id && evt.payload?.removedUser?.username === user?.username) {
-          setConversations(prev => prev.filter(c => c.id !== id));
+      if (evt.type === "system") {
+        if (evt.subtype === "member_removed") {
+          const id = evt.conversationId;
+          if (id && evt.payload?.removedUser?.username === user?.username) {
+            setConversations(prev => prev.filter(c => c.id !== id));
+          }
+        }
+        if (evt.subtype === "conversation_redirected_to_group") {
+          const destId = evt.payload?.destinationConversationId;
+          if (destId) {
+            setActiveConversation(
+              conversationsRef.current.find(c => c.id === destId) ?? null,
+            );
+          }
         }
       }
 
@@ -93,7 +127,7 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
           const conv = conversationsRef.current.find(
             c => c.id === evt.conversationId,
           );
-          if (conv.muted) return;
+          if (conv?.muted) return;
 
           showMessageNotification(
             {
@@ -121,7 +155,6 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
               last_message_at: evt.createdAt,
               next_seq: Math.max(c.next_seq, event.seq + 1),
               state_version: event.stateVersion,
-              // Increment unseen count only for messages from others
               unseenCount: evt.isCurrentUser
                 ? c.unseenCount
                 : (c.unseenCount ?? 0) + 1,
@@ -129,17 +162,27 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
           }),
         );
       }
+
+      if (evt.type === "state" && evt.subtype === "state_changed") {
+        const id = evt.conversationId;
+        if (id && evt.payload?.after) {
+          setConversations(prev =>
+            prev.map(c => (c.id === id ? { ...c, ...evt.payload?.after } : c)),
+          );
+        }
+      }
     },
-    [setIsOpen],
+    [setIsOpen, setConversations, user?.username, conversationsRef.current],
   );
 
   /** Handle conversations:upsert - add new conversation or refresh existing */
   const handleUpsert = useCallback(
     async (message: WsUpsertMessage) => {
-      const { conversationId } = message;
-
-      // Always refetch to get updated data
-      const conv = await api.fetchConversation(conversationId);
+      const { conversationId, conversation } = message;
+      let conv: Conversation = conversation;
+      if (!conversation) {
+        conv = conversation ?? (await api.fetchConversation(conversationId));
+      }
       if (conv) {
         setConversations(prev => {
           const exists = prev.some(c => c.id === conversationId);
@@ -148,41 +191,39 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
               c.id === conversationId ? enrichConversation(conv) : c,
             );
           }
-          return [enrichConversation(conv), ...prev];
+          const newConversations = [enrichConversation(conv), ...prev];
+          conversationsRef.current = newConversations; // Update ref for WS handlers
+          return newConversations;
         });
       }
     },
-    [api, enrichConversation],
+    [api, enrichConversation, setConversations],
   );
 
   /** Handle read_updated - reset unseen count when the current user reads */
   const handleReadUpdated = useCallback(
     (message: WsReadUpdatedMessage) => {
-      // Only reset if the reading user is the current user
       if (message.userId !== user?.id) return;
 
       setConversations(prev =>
         prev.map(c => {
           if (c.id !== message.conversationId) return c;
-          return {
-            ...c,
-            unseenCount: 0,
-          };
+          return { ...c, unseenCount: 0 };
         }),
       );
     },
-    [user?.id],
+    [user?.id, setConversations],
   );
 
   /** Central WS message handler */
   const handleWsMessage = useCallback(
     (message: WsServerMessage) => {
       switch (message.type) {
-        case "conversation:event":
-          handleMessageEvent(message as ConversationEvent);
-          break;
         case "conversations:upsert":
           void handleUpsert(message as WsUpsertMessage);
+          break;
+        case "conversation:event":
+          handleMessageEvent(message as ConversationEvent);
           break;
         case "conversation:read_updated":
           handleReadUpdated(message as WsReadUpdatedMessage);
@@ -192,22 +233,9 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
     [handleMessageEvent, handleUpsert, handleReadUpdated],
   );
 
-  const handleTitleEdit = useCallback(
-    (newTitle: string) => {
-      if (activeConversation) {
-        setActiveConversation(prev =>
-          prev ? { ...prev, title: newTitle } : null,
-        );
-        updateConversation(activeConversation.id, { title: newTitle });
-      }
-    },
-    [activeConversation, updateConversation],
-  );
-
   const handleOpenChat = useCallback(
     (conversation: Conversation) => {
       setActiveConversation(conversation);
-      // Reset unseen count when opening
       updateConversation(conversation.id, { unseenCount: 0 });
     },
     [updateConversation],
@@ -216,13 +244,12 @@ export function useConversations(setIsOpen: (open: boolean) => void) {
   return {
     conversations,
     isLoading,
-    refetch: fetchAll,
+    refetch,
     handleWsMessage,
     updateConversation,
     removeConversation,
     activeConversation,
     setActiveConversation,
-    handleTitleEdit,
     handleOpenChat,
     setConversations,
   };

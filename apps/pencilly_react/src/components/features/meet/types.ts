@@ -1,5 +1,8 @@
 // ─── Actor / User ───────────────────────────────────────────────────────────
 
+import type {useConversationApi} from "@/components/features/meet/hooks";
+import type {UpdateConversationInput} from "@/components/features/meet/hooks/useUpdateConversationInfo";
+
 export interface Actor {
   id: number;
   name: string;
@@ -20,16 +23,20 @@ export interface MeetUser {
 
 // ─── Conversation ───────────────────────────────────────────────────────────
 
+export type ConversationType = "direct" | "group";
+export type FeatureState = "open" | "read_only" | "closed"
+export type ConversationStatus = "active" | "closed" | "archived"
+
 export interface Conversation {
   id: string;
   title: string;
   owner_id: number;
   role: string;
-  status: string;
-  chat_state: string;
-  call_state: string;
-  collab_state: string;
-  stream_state: string;
+  status: ConversationStatus;
+  chat_state: FeatureState;
+  call_state: FeatureState;
+  collab_state: FeatureState;
+  stream_state: FeatureState;
   next_seq: number;
   state_version: number;
   starts_at: string | null;
@@ -38,6 +45,7 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   muted: boolean;
+  type: ConversationType;
 
   // API-provided enrichment fields
   unread_count?: number;
@@ -50,7 +58,7 @@ export interface Conversation {
   unseenCount?: number;
   isOnline?: boolean;
   isGroup?: boolean;
-  avatarUrl?: string;
+  profile_image_url?: string;
 }
 
 // ─── Conversation List API Response ─────────────────────────────────────────
@@ -185,6 +193,7 @@ export interface WsUnsubscribedMessage {
 export interface WsUpsertMessage {
   type: "conversations:upsert";
   conversationId: string;
+  conversation?: Conversation;
   reason: string;
   role: string | null;
 }
@@ -324,33 +333,6 @@ export interface ConversationMembersResponse {
   items: ConversationMember[];
 }
 
-/** Settings schema for a group chat */
-export interface ChatGroupSettings {
-  message: {
-    allowMembersToSend: boolean;
-    availability: "always" | "only_during_meetings" | "custom_schedule";
-    schedule: {
-      start: string;
-      end: string;
-      repeat: string[];
-    };
-    allowedTypes: {
-      all: boolean;
-      textMessages: boolean;
-      images: boolean;
-      videos: boolean;
-      fileUploads: boolean;
-      links: boolean;
-    };
-    allowDeletion: boolean;
-  };
-  meeting: {
-    allowCreation: boolean;
-    chatDuringMeetingOnly: boolean;
-    allowRecording: boolean;
-  };
-}
-
 export type ReactionType = "emoji" | "raise_hand" | "lower_hand";
 
 export interface Decorator {
@@ -375,3 +357,9 @@ export interface SearchUser {
   email: string
   profile_image_url: string
 }
+
+export type ChatSettings = Omit<UpdateConversationInput, "profile_image_url" | "title">
+
+
+
+export type ConversationApi = ReturnType<typeof useConversationApi>

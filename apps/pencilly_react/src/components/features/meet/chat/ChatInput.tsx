@@ -18,7 +18,11 @@ import { useTranslations } from "@/i18n";
 
 import type { ChatMessage, MeetUser } from "../types";
 import MentionPopup from "./MentionPopup";
-import {extractDecoratorsFromText} from "@/components/features/meet/utils";
+import {
+  extractDecoratorsFromText,
+  getCaretCharacterOffsetWithin,
+  setCaretCharacterOffsetWithin
+} from "@/components/features/meet/utils";
 import {decorators} from "@/components/features/meet/constants";
 
 interface ChatInputProps {
@@ -104,11 +108,59 @@ const ChatInput: FC<ChatInputProps> = ({
     [value, mentionOpen, replyTo, editingMessage],
   );
 
+
+
   const handleMentionSelect = useCallback(
     (mention: string) => {
-      const newValue = `${value}${value.endsWith("@") ? "" : "@"}${mention} `.trim();
-      setInitialValue(newValue);
+      const el = divRef.current;
+      const text = el?.innerText ?? value ?? "";
+      const caret = getCaretCharacterOffsetWithin(el);
+
+      // Find the last '@' before or at the caret
+      const atIndex = text.lastIndexOf('@', Math.max(0, caret - 1));
+
+      let newText = text;
+      let insertPos = caret;
+
+      if (atIndex !== -1) {
+        // Check if there's any whitespace between '@' and caret. If there is, treat as not an active token.
+        const between = text.slice(atIndex, caret);
+        const hasSpaceBetween = /\s/.test(between);
+
+        if (!hasSpaceBetween) {
+          // Replace token from atIndex to token end
+          let tokenEnd = atIndex + 1;
+          while (tokenEnd < text.length && !/\s/.test(text[tokenEnd])) tokenEnd++;
+          newText = text.slice(0, atIndex) + `@${mention} ` + text.slice(tokenEnd);
+          insertPos = atIndex + (`@${mention} `).length;
+        } else {
+          // space between -> insert at caret if not duplicate
+          const existing = text.includes(`@${mention}`);
+          if (existing) {
+            setMentionOpen(false);
+            return;
+          }
+          newText = text.slice(0, caret) + `@${mention} ` + text.slice(caret);
+          insertPos = caret + (`@${mention} `).length;
+        }
+      } else {
+        // no @ before caret -> insert if not duplicate
+        if (text.includes(`@${mention}`)) {
+          setMentionOpen(false);
+          return;
+        }
+        newText = text.slice(0, caret) + `@${mention} ` + text.slice(caret);
+        insertPos = caret + (`@${mention} `).length;
+      }
+
+      setValue(newText);
+      setInitialValue(newText);
       setMentionOpen(false);
+
+      if (el) {
+        el.innerText = newText;
+        setTimeout(() => setCaretCharacterOffsetWithin(el, insertPos), 0);
+      }
     },
     [value],
   );
@@ -117,15 +169,22 @@ const ChatInput: FC<ChatInputProps> = ({
     setMentionOpen(prev => !prev);
   };
 
-  const handleEmojiSelect = useCallback(
-    (emoji: string) => {
-      setInitialValue(value?.trim() ? value + emoji?.trim() : emoji?.trim());
-    },
-    [value],
-  );
+    const handleEmojiSelect = useCallback(
+        (emoji: string) => {
+            setInitialValue(value?.trim() ? value + emoji?.trim() : emoji?.trim());
+        },
+        [value],
+    );
 
   const handleTranscript = useCallback((transcript: string) => {
-    setInitialValue(transcript);
+    const el = divRef.current;
+    const newText = transcript ?? "";
+    setValue(newText);
+    setInitialValue(newText);
+    if (el) {
+      el.innerText = newText;
+      setTimeout(() => setCaretCharacterOffsetWithin(el, newText.length), 0);
+    }
   }, []);
 
   const handleSend = useCallback(() => {

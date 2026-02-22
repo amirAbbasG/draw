@@ -99,7 +99,7 @@ export function useConversationWs(options: UseConversationWsOptions = {}) {
   const handleMessage = useCallback(
     (data: any) => {
       const message = data as WsServerMessage;
-      console.log("Received WS message:", message);
+      // console.log("Received WS message:", message);
       // Track auto-subscribed IDs
       if (message.type === "conversations:connected") {
         autoSubscribedIds.current = message.autoSubscribedConversationIds ?? [];

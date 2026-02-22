@@ -3,10 +3,12 @@ import React, { useRef, type FC } from "react";
 import AddUserPopup from "@/components/features/meet/AddUserPopup";
 import MemberCard from "@/components/features/meet/chat/MemberCard";
 import ConversationDeleteAlert from "@/components/features/meet/conversation/ConversationDeleteAlert";
+import { useUpdateConversationInfo } from "@/components/features/meet/hooks/useUpdateConversationInfo";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import RenderIf from "@/components/shared/RenderIf";
 import { Show } from "@/components/shared/Show";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
+import AppLoading from "@/components/ui/custom/app-loading";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -24,12 +26,11 @@ interface ChatInfoProps {
   onLeaveGroup?: () => void;
   /** Delete for everyone (owner only) */
   onDeleteForEveryone?: () => void;
-  onAvatarChange?: (file: File) => void;
-  onNameChange?: (name: string) => void;
   handeInviteUser: (
     user: MeetUser,
     inviteToCal?: boolean,
     conversationId?: string,
+    includeChat?: number,
   ) => void;
   onDeleteMember: (memberId: string) => void;
   className?: string;
@@ -47,8 +48,6 @@ const ChatInfo: FC<ChatInfoProps> = ({
   onSettings,
   onLeaveGroup,
   onDeleteForEveryone,
-  onAvatarChange,
-  onNameChange,
   handeInviteUser,
   className,
   onDeleteMember,
@@ -59,23 +58,32 @@ const ChatInfo: FC<ChatInfoProps> = ({
   const t = useTranslations("meet.chat.info");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { isUpdating, updateConversationInfo, isUploading, uploadImage } =
+    useUpdateConversationInfo(conversation.id);
+
   // Use API members if provided, otherwise fall back to conversation.members
   const members = apiMembers ?? conversation.members ?? [];
-  const { title, avatarUrl, muted, role, isGroup } = conversation;
+  const { title, profile_image_url, muted, role, isGroup, call_state } =
+    conversation;
   const isOwner = role === "owner";
+  const canCallAction = isOwner || call_state === "open";
 
   const displayTitle =
     title || members.map(m => m.name).join(", ") || "Conversation";
 
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { url } = await uploadImage({ file: e.target.files?.[0] } as {
+      file: File;
+    });
+    if (url) {
+      updateConversationInfo({
+        profile_image: url,
+      });
+    }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onAvatarChange?.(file);
-    }
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -101,11 +109,17 @@ const ChatInfo: FC<ChatInfoProps> = ({
         <div className="centered-col p-4 gap-4">
           <div className="relative">
             <UserAvatar
-              imageSrc={avatarUrl}
+              imageSrc={profile_image_url}
               name={displayTitle}
               className="!h-24 !w-24"
               backgroundColor="var(--bg-dark)"
             />
+            <RenderIf isTrue={isUploading}>
+              <AppLoading
+                rootClass="center-position"
+                svgClass="text-primary-lighter"
+              />
+            </RenderIf>
             <RenderIf isTrue={isGroup}>
               <AppIconButton
                 icon={sharedIcons.edit}
@@ -113,6 +127,7 @@ const ChatInfo: FC<ChatInfoProps> = ({
                 variant="fill"
                 onClick={handleAvatarClick}
                 className="absolute bottom-1 right-1"
+                disabled={isUpdating || isUploading}
               />
               <input
                 ref={fileInputRef}
@@ -130,13 +145,15 @@ const ChatInfo: FC<ChatInfoProps> = ({
                 defaultValue={displayTitle}
                 onBlur={e => {
                   const val = e.target.value.trim();
-                  if (val && val !== displayTitle) onNameChange?.(val);
+                  if (val && val !== displayTitle)
+                    updateConversationInfo({ title: val });
                 }}
                 onKeyDown={e => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
                 aria-label={t("group_name")}
                 className="bg-background"
+                wrapperClassName="max-w-64"
               />
             </Show.When>
             <Show.Else>
@@ -154,6 +171,7 @@ const ChatInfo: FC<ChatInfoProps> = ({
             icon={sharedIcons.call}
             label={t("call")}
             onClick={onCall}
+            disabled={!canCallAction}
           />
 
           {/* Mute / Unmute notification */}
@@ -194,11 +212,13 @@ const ChatInfo: FC<ChatInfoProps> = ({
         <RenderIf isTrue={(isGroup ?? false) || members.length > 0}>
           <div className="py-2 bg-background-lighter">
             <div className="spacing-row px-2">
-              <AppTypo variant="headingS" >
+              <AppTypo variant="headingS">
                 {t("members")} ({members.length})
               </AppTypo>
               <AddUserPopup
-                onInvite={user => handeInviteUser(user, false, conversation.id)}
+                onInvite={(user, includeChat) =>
+                  handeInviteUser(user, false, conversation.id, includeChat)
+                }
               />
             </div>
 
@@ -236,9 +256,15 @@ interface ActionButtonProps {
   icon: string;
   label: string;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
-const ActionButton: FC<ActionButtonProps> = ({ icon, label, onClick }) => (
+const ActionButton: FC<ActionButtonProps> = ({
+  icon,
+  label,
+  onClick,
+  disabled,
+}) => (
   <AppIconButton
     type="button"
     icon={icon}
@@ -247,5 +273,6 @@ const ActionButton: FC<ActionButtonProps> = ({ icon, label, onClick }) => (
     className="h-11 w-[52px] shrink-0"
     title={label}
     onClick={onClick}
+    disabled={disabled}
   />
 );

@@ -39,7 +39,7 @@ const ConversationPage: FC<ConversationPageProps> = ({
                 <Skeleton className="h-3 w-1/3 rounded" />
                 <Skeleton className="h-2 w-1/2 rounded" />
               </div>
-              <Skeleton className="size-6 rounded -me-0.5" />
+              {/*<Skeleton className="size-6 rounded -me-0.5" />*/}
               <Skeleton className="size-6 rounded" />
             </div>
           ))}

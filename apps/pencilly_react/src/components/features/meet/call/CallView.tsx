@@ -5,7 +5,7 @@ import { useMediaQuery } from "usehooks-ts";
 import ConnectPending from "@/components/features/meet/call/ConnectPending";
 import PendingParticipantTile from "@/components/features/meet/call/PendingParticipantTile";
 import type { useConversationWs } from "@/components/features/meet/hooks";
-import { MeetUser } from "@/components/features/meet/types";
+import { Conversation, MeetUser } from "@/components/features/meet/types";
 import RenderIf from "@/components/shared/RenderIf";
 import { Show } from "@/components/shared/Show";
 import { cn } from "@/lib/utils";
@@ -55,7 +55,7 @@ interface CallViewProps {
   /** Callback when call is closed (X button) */
   onClose?: () => void;
   /** Callback to invite a user */
-  onInviteUser: (user: MeetUser) => void;
+  onInviteUser: (user: MeetUser, includeChat?: number) => void;
   /** Callback to remove a participant */
   onRemoveParticipant?: (id: string) => void;
   className?: string;
@@ -63,9 +63,11 @@ interface CallViewProps {
   activeConversationId: string;
   pendingParticipants?: Array<MeetUser & { addedAt: number }>;
   isConnecting?: boolean;
+  conversation: Conversation;
 }
 
 const CallView: FC<CallViewProps> = ({
+  conversation,
   participants,
   room,
   startTime,
@@ -89,7 +91,7 @@ const CallView: FC<CallViewProps> = ({
   pendingParticipants,
   isVolumeMuted,
   onToggleVolume,
-    onInviteUser,
+  onInviteUser,
 }) => {
   const isSmallScreen = useMediaQuery("(max-width: 640px)"); // sm breakpoint
   const [viewMode, setViewMode] = useState<CallViewMode>("maximized");
@@ -128,7 +130,7 @@ const CallView: FC<CallViewProps> = ({
     onClose?.();
   }, [onEndCall, onClose]);
 
-  const owner = participants.find(p => p.isLocal);
+  const currentUser = participants.find(p => p.isLocal);
 
   // Minimized view
   if (viewMode === "minimized") {
@@ -209,8 +211,9 @@ const CallView: FC<CallViewProps> = ({
 
         {/* Footer */}
         <CallFooter
-            onInvite={onInviteUser}
-          owner={owner}
+          currentUser={currentUser}
+          onInvite={onInviteUser}
+          conversation={conversation}
           room={room}
           startTime={startTime}
           isMicMuted={isMicMutedProp}
@@ -230,14 +233,19 @@ const CallView: FC<CallViewProps> = ({
           onGridSettingsChange={setGridSettings}
           onReaction={emoji => {
             if (!activeConversationId) return;
-            onReactionProp(activeConversationId, owner.id, "emoji", emoji);
+            onReactionProp(
+              activeConversationId,
+              currentUser.id,
+              "emoji",
+              emoji,
+            );
           }}
           toggleRaiseHand={() => {
             if (!activeConversationId) return;
             onReactionProp(
               activeConversationId,
-              owner.id,
-              owner.raisedHand ? "lower_hand" : "raise_hand",
+              currentUser.id,
+              currentUser.raisedHand ? "lower_hand" : "raise_hand",
             );
           }}
           onChat={() => onOpenChat?.()}

@@ -15,6 +15,7 @@ export interface MoreMenuIem {
   onClick: () => void;
   className?: string;
   preventCloseOnClick?: boolean;
+  disabled?: boolean;
 }
 
 interface IProps {
@@ -64,6 +65,7 @@ const MoreDropdown: FC<IProps> = ({
       >
         {items.map((item, index) => (
           <DropdownMenuItem
+              disabled={item.disabled}
             key={index}
             icon={item.icon}
             className={cn(item.className)}

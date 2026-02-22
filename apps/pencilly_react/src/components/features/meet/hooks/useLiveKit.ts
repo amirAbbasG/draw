@@ -7,10 +7,31 @@ import type {
   ConnectionState
 } from "@/components/features/call/types";
 import { useTranslations } from "@/i18n";
+import {useUser} from "@/stores/context/user";
 
 interface UseLiveKitOptions {
   onStatusChange?: (status: string) => void;
 }
+
+
+const getMetadata = (participant: any) => {
+  const raw = participant?.metadata ?? participant?.info?.metadata;
+  if (!raw || typeof raw !== "string" || raw.trim() === "") return undefined;
+
+  try {
+    const metadata = JSON.parse(raw);
+    return {
+      profileImage: metadata?.profileImage || metadata?.profile_image_url,
+      username: metadata?.username || participant.identity
+    }
+  } catch {
+    return {
+      profileImage: undefined,
+      username: participant.identity
+    }
+  }
+};
+
 
 export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const t = useTranslations("call.status");
@@ -23,6 +44,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const [cameraMuted, setCameraMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isVolumeMuted, setIsVolumeMuted] = useState(false)
+  const {user: userData} = useUser()
 
   const isAnyoneSharing = remoteTracks.some((t) => t.kind === "video" && t.source === "screen")
 
@@ -67,18 +89,6 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     return livekit;
   }, []);
 
-  const getProfileImageFromMetadata = (participant: any): string | undefined => {
-    const raw = participant?.metadata ?? participant?.info?.metadata;
-    if (!raw || typeof raw !== "string" || raw.trim() === "") return undefined;
-
-    try {
-      const metadata = JSON.parse(raw);
-      return metadata?.profileImage || metadata?.profile_image_url;
-    } catch {
-      return undefined;
-    }
-  };
-
   // NOTE: added options.publishVideo to control whether video tracks are created/published
   const join = useCallback(
       async (livekitUrl: string, token: string, displayName?: string, profileImage?: string, options?: { publishVideo?: boolean }) => {
@@ -122,14 +132,13 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
                     audioEl.play().catch(() => {});
                     audioElementsRef.current.set(track.sid, audioEl);
                   }
-
                   setRemoteTracks(prev => [
                     ...prev,
                     {
                       kind: track.kind,
                       participantIdentity: participant.identity,
                       participantName: participant.name,
-                      participantProfileImage: getProfileImageFromMetadata(participant),
+                      participantProfileImage: getMetadata(participant).profileImage,
                       track: mediaStreamTrack,
                       sid: track.sid,
                       source: isScreenShare ? "screen" : "camera",
@@ -185,7 +194,8 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
               {
                 identity: participant.identity,
                 name: participant.name,
-                profileImage: getProfileImageFromMetadata(participant),
+                profileImage: getMetadata(participant).profileImage,
+                username:  getMetadata(participant).username,
                 isLocal: false,
               },
             ]);
@@ -236,7 +246,8 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
             {
               identity: room.localParticipant.identity,
               name: room.localParticipant.name || displayName,
-              profileImage: profileImage || getProfileImageFromMetadata(room.localParticipant),
+              profileImage: profileImage || userData.profile_image_url || getMetadata(room.localParticipant)?.profileImage,
+              username: userData.username || getMetadata(room.localParticipant)?.username,
               isLocal: true,
             },
           ]);
@@ -247,7 +258,8 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
               {
                 identity: participant.identity,
                 name: participant.name,
-                profileImage: getProfileImageFromMetadata(participant),
+                profileImage: getMetadata(participant)?.profileImage,
+                username: getMetadata(participant)?.username,
                 isLocal: false,
               },
             ]);
@@ -512,11 +524,11 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     });
   }, [isVolumeMuted]);
 
-  useEffect(() => {
-    return () => {
-      leave();
-    };
-  }, []);
+  // useEffect(() => {
+  //   return () => {
+  //     leave();
+  //   };
+  // }, []);
 
 
   return {

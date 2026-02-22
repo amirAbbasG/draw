@@ -30,11 +30,9 @@ export const useCommentActions = () => {
     },
     onMutate: async ({ comment }) => {
       await queryClient.cancelQueries({ queryKey });
-      // await queryClient.cancelQueries({ queryKey: newsKeys.savedNews(1) });
 
       // Snapshot the previous value
       const previousData = queryClient.getQueryData(queryKey) as Comment[];
-      // const previousSavedNews = queryClient.getQueryData(newsKeys.savedNews(1));
 
       queryClient.setQueryData(queryKey, (data: Comment[]) => {
         return [...data, comment];

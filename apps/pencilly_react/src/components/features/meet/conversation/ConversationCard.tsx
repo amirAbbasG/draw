@@ -42,16 +42,19 @@ const ConversationCard: FC<ConversationCardProps> = ({
   const [openDelete, setOpenDelete] = useState(false);
   const {
     title,
-    avatarUrl,
+    profile_image_url,
     members = [],
     last_message,
     unseenCount,
     isOnline,
     isGroup = false,
     muted = false,
+      call_state
   } = conversation;
 
   const isOwner = conversation.role === "owner";
+  const canStartCall = isOwner || call_state === "open";
+
 
   const displayTitle = useMemo(() => {
     if (title) return title;
@@ -89,11 +92,13 @@ const ConversationCard: FC<ConversationCardProps> = ({
       label: tMeet("audio_call"),
       icon: sharedIcons.call,
       onClick: () => onCall(conversation, "audio"),
+      disabled: !canStartCall,
     },
     {
       label: tMeet("video_call"),
       icon: sharedIcons.video,
       onClick: () => onCall(conversation, "video"),
+      disabled: !canStartCall,
     },
     {
       label: muted ? t("unmute") : t("mute"),
@@ -129,7 +134,7 @@ const ConversationCard: FC<ConversationCardProps> = ({
         <div className="relative shrink-0">
           <ConversationAvatar
             isGroup={isGroup}
-            avatarUrl={avatarUrl}
+            avatarUrl={profile_image_url}
             members={members}
           />
           <RenderIf isTrue={isOnline}>

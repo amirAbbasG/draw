@@ -14,6 +14,8 @@ import {
 
 const API_BASE = "/conversations";
 
+
+
 /**
  * Provides REST API calls for conversations.
  * Uses axiosFetch from useAxiosFetcher for all requests.
@@ -332,6 +334,7 @@ export function useConversationApi() {
       conversationId: string,
       user_id: number,
       invite_to_call?: boolean,
+      include_chat: number = 0,
     ): Promise<boolean> => {
       try {
         await axiosFetch(
@@ -341,7 +344,7 @@ export function useConversationApi() {
             throwError: true,
             showError: true,
           },
-          { user_id, invite_to_call },
+          { user_id, invite_to_call, include_chat },
         );
         return true;
       } catch {
@@ -350,6 +353,8 @@ export function useConversationApi() {
     },
     [axiosFetch],
   );
+
+
 
   return {
     fetchConversations,

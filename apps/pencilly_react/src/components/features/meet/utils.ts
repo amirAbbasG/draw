@@ -165,7 +165,7 @@ export const createTemConversation = (user: MeetUser, me: MeetUser) => {
   return  {
     id: `temp-${user.id}`,
     title: user.name,
-    avatarUrl: user.avatarUrl,
+    profile_image_url: user.avatarUrl,
     members: [user, me],
     owner_id: Number(me.id),
     role: "owner",
@@ -184,3 +184,65 @@ export const createTemConversation = (user: MeetUser, me: MeetUser) => {
     muted: false,
   } as Conversation
 }
+
+// Helper: compute caret offset (character index) within a contenteditable element
+export const getCaretCharacterOffsetWithin = (element: HTMLElement | null) => {
+  if (!element) return 0;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return element.innerText.length;
+
+  const range = selection.getRangeAt(0);
+  const preCaretRange = range.cloneRange();
+  preCaretRange.selectNodeContents(element);
+  preCaretRange.setEnd(range.endContainer, range.endOffset);
+
+  const temp = document.createElement('div');
+  temp.appendChild(preCaretRange.cloneContents());
+  return temp.innerText.length;
+};
+
+// Helper: set caret at a character offset within contenteditable
+export const setCaretCharacterOffsetWithin = (element: HTMLElement | null, offset: number) => {
+  if (!element) return;
+  element.focus();
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  let currentOffset = 0;
+  let nodeToPlace: Node | null = null;
+  let placeOffset = 0;
+
+  // NodeFilter is available on window; createTreeWalker typing can be strict in TS, use as any if needed
+  const walker = (document as any).createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null
+  );
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    const nextOffset = currentOffset + (node.textContent?.length ?? 0);
+    if (offset <= nextOffset) {
+      nodeToPlace = node;
+      placeOffset = offset - currentOffset;
+      break;
+    }
+    currentOffset = nextOffset;
+  }
+
+  if (nodeToPlace) {
+    const range = document.createRange();
+    range.setStart(nodeToPlace, placeOffset);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+};
+
+

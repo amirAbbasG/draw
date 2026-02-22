@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-
-
 import type { StreamSession } from "@/components/features/call/types";
 import type { CallParticipant } from "@/components/features/meet/call";
 import { useLiveKit } from "@/components/features/meet/hooks/useLiveKit";
@@ -10,11 +8,13 @@ import { useCustomSearchParams } from "@/hooks/useCustomSearchParams";
 import { useUser } from "@/stores/context/user";
 import { CALL_SESSION_KEY } from "@/constants/keys";
 
-
-
 import { showIncomingCall } from "../notification";
-import type { CallType, ConversationEvent, MeetUser, WsServerMessage } from "../types";
-
+import type {
+  CallType,
+  ConversationEvent,
+  MeetUser,
+  WsServerMessage,
+} from "../types";
 
 const PENDING_TIMEOUT_MS = 30_000;
 
@@ -47,7 +47,6 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
     new Map(),
   );
 
-
   const streamSessionAPI = useStreamSession({
     onError: setStatusMessage,
   });
@@ -63,6 +62,7 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
     : "";
 
   const profileImage = user?.profile_image_url ?? undefined;
+  const username = user?.username ?? undefined;
 
   const addPending = useCallback((participants: MeetUser[]) => {
     setPendingParticipants(prev => {
@@ -121,7 +121,10 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
 
       const tokenResponse = await streamSessionAPI.getToken(session.id, {
         name: displayName,
-        metadata: profileImage ? { profileImage } : undefined,
+        metadata: {
+          profileImage,
+          username,
+        },
       });
 
       if (tokenResponse) {
@@ -153,7 +156,10 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
 
       const tokenResponse = await streamSessionAPI.getToken(session.id, {
         name: displayName,
-        metadata: profileImage ? { profileImage } : undefined,
+        metadata: {
+          profileImage,
+          username,
+        },
       });
 
       if (tokenResponse) {
@@ -186,21 +192,20 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
   /** Handle WS messages for activity events */
   const handleWsMessage = useCallback(
     (message: WsServerMessage) => {
-
       if (message.type === "conversation:call_invite") {
         showIncomingCall(
-            {
-              callerName: message?.invitedBy?.name ?? "Unknown",
-              callerAvatarUrl: message?.invitedBy?.profileImageUrl ?? undefined,
-              callType: "voice",
-            },
-            () => {
-              const sid = message.sessionId;
-              if (sid) {
-                void joinCall(sid);
-                onCallAccepted?.(sid);
-              }
-            },
+          {
+            callerName: message?.invitedBy?.name ?? "Unknown",
+            callerAvatarUrl: message?.invitedBy?.profileImageUrl ?? undefined,
+            callType: "voice",
+          },
+          () => {
+            const sid = message.sessionId;
+            if (sid) {
+              void joinCall(sid);
+              onCallAccepted?.(sid);
+            }
+          },
         );
       }
 
@@ -237,44 +242,54 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
       if (message.type !== "conversation:event") return;
       const wsEvent = message as ConversationEvent;
       const { event } = wsEvent;
-      if (event.type !== "activity") return;
 
-      // Build a stable key for deduplication:
-      const sessionId =
-        event.payload?.payload?.sessionId ??
-        event.payload?.sessionId ??
-        undefined;
-
-
-      // Existing handling logic follows...
       if (
-        event.subtype === "activity_started" &&
-        event.payload?.kind === "call"
+        event.type === "system" &&
+        event.subtype === "conversation_redirected_to_group"
       ) {
-        const actorData = event.payload?.actor ?? event.actor;
-        const sid = sessionId;
-        if (event.isCurrentUser) return;
-
-        showIncomingCall(
-          {
-            callerName: actorData?.name ?? "Unknown",
-            callerAvatarUrl: actorData?.profileImageUrl ?? undefined,
-            callType: "voice",
-          },
-          () => {
-            if (sid) {
-              void joinCall(sid);
-              onCallAccepted?.(sid);
-            }
-          },
-        );
+        const destId = event.payload?.destinationConversationId;
+        if (destId) {
+          setActiveConversationId(destId);
+        }
       }
 
-      if (event.subtype === "activity_joined") {
-        removePending("group"); // Remove generic "group" pending if exists
-        const joinedUserId = event.payload?.userId;
-        if (joinedUserId) {
-          removePending(joinedUserId);
+      if (event.type === "activity") {
+        // Build a stable key for deduplication:
+        const sessionId =
+          event.payload?.payload?.sessionId ??
+          event.payload?.sessionId ??
+          undefined;
+
+        // Existing handling logic follows...
+        if (
+          event.subtype === "activity_started" &&
+          event.payload?.kind === "call"
+        ) {
+          const actorData = event.payload?.actor ?? event.actor;
+          const sid = sessionId;
+          if (event.isCurrentUser) return;
+
+          showIncomingCall(
+            {
+              callerName: actorData?.name ?? "Unknown",
+              callerAvatarUrl: actorData?.profileImageUrl ?? undefined,
+              callType: "voice",
+            },
+            () => {
+              if (sid) {
+                void joinCall(sid);
+                onCallAccepted?.(sid);
+              }
+            },
+          );
+        }
+
+        if (event.subtype === "activity_joined") {
+          removePending("group"); // Remove generic "group" pending if exists
+          const joinedUserId = event.payload?.userId;
+          if (joinedUserId) {
+            removePending(joinedUserId);
+          }
         }
       }
     },
@@ -339,7 +354,7 @@ export function useMeetCall({ onCallAccepted }: UseMeetCallOptions = {}) {
       return {
         id: p.identity ?? String(Math.random()),
         name: p.name ?? p.identity ?? "Unknown",
-        username: p.name,
+        username: p.username,
         avatarUrl: p.profileImage,
         isLocal: p.isLocal ?? false,
         isMuted: p.isLocal ? micMuted : false,

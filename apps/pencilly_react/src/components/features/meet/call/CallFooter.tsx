@@ -1,21 +1,22 @@
 import React, { useEffect, useState, type FC } from "react";
 
+import type { Conversation, MeetUser } from "@/components/features/meet/types";
 import { formatElapsed } from "@/components/features/meet/utils";
 import { UserAvatar } from "@/components/features/user/UserAvatar";
 import RenderIf from "@/components/shared/RenderIf";
 import AppIcon from "@/components/ui/custom/app-icon";
 import AppTypo from "@/components/ui/custom/app-typo";
+import { useCopyTextInClipBoard } from "@/hooks/useCopyTextInClipBoard";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
 
 import CallActions from "./CallActions";
 import type { CallParticipant, CallRoom, GridSettings } from "./types";
-import {useCopyTextInClipBoard} from "@/hooks/useCopyTextInClipBoard";
-import {MeetUser} from "@/components/features/meet/types";
 
 interface CallFooterProps {
-  owner: CallParticipant;
+  conversation: Conversation;
+  currentUser: CallParticipant;
   room: CallRoom;
   startTime: number;
   // Action states
@@ -37,11 +38,11 @@ interface CallFooterProps {
   className?: string;
   onGridSettingsChange: (settings: GridSettings) => void;
   isOpenSidebar?: boolean;
-  onInvite: (user: MeetUser) => void;
+  onInvite: (user: MeetUser, includeChat?: number) => void;
 }
 
 const CallFooter: FC<CallFooterProps> = ({
-  owner,
+  currentUser,
   room,
   startTime,
   isMicMuted,
@@ -60,11 +61,12 @@ const CallFooter: FC<CallFooterProps> = ({
   gridSettings,
   onGridSettingsChange,
   isOpenSidebar,
-    onInvite
+  onInvite,
+  conversation,
 }) => {
   const t = useTranslations("meet.call");
   const [elapsed, setElapsed] = useState(0);
-  const [handleCopy, isCopied,] = useCopyTextInClipBoard()
+  const [handleCopy, isCopied] = useCopyTextInClipBoard();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,8 +74,6 @@ const CallFooter: FC<CallFooterProps> = ({
     }, 1000);
     return () => clearInterval(interval);
   }, [startTime]);
-
-
 
   return (
     <div
@@ -93,13 +93,13 @@ const CallFooter: FC<CallFooterProps> = ({
         )}
       >
         <UserAvatar
-          imageSrc={owner?.avatarUrl}
-          name={owner?.name}
+          imageSrc={currentUser?.avatarUrl}
+          name={currentUser?.name}
           className="size-14 shrink-0"
         />
         <div className="col gap-1.5 min-w-0">
           <AppTypo variant="headingS" className="font-semibold truncate">
-            {owner?.name}
+            {currentUser?.name}
           </AppTypo>
           <AppTypo variant="small" color="secondary">
             {formatElapsed(elapsed)}
@@ -107,9 +107,9 @@ const CallFooter: FC<CallFooterProps> = ({
         </div>
       </div>
 
-      {/* Center: Actions */}
       <CallActions
-          onInvite={onInvite}
+        conversation={conversation}
+        onInvite={onInvite}
         isMicMuted={isMicMuted}
         isVolumeMuted={isVolumeMuted}
         isCameraMuted={isCameraMuted}
@@ -120,7 +120,7 @@ const CallFooter: FC<CallFooterProps> = ({
         onToggleScreenShare={onToggleScreenShare}
         onReaction={onReaction}
         toggleRaiseHand={toggleRaiseHand}
-        isRaisedHand={owner?.raisedHand}
+        isRaisedHand={currentUser?.raisedHand}
         onChat={onChat}
         onGridSettingsChange={onGridSettingsChange}
         gridSettings={gridSettings}
@@ -153,10 +153,12 @@ const CallFooter: FC<CallFooterProps> = ({
             onClick={() => handleCopy(room.link)}
             title={t("copy_link")}
           >
-            <div className={cn(
+            <div
+              className={cn(
                 "bg-primary text-primary-foreground text-sm px-4 py-2 absolute -top-9 start-1/2 -translate-x-1/2 rounded text-nowrap",
-                isCopied ? "block" : "hidden"
-            )}>
+                isCopied ? "block" : "hidden",
+              )}
+            >
               {t("link_copied")}
             </div>
             <AppIcon

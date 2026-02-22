@@ -38,7 +38,10 @@ const ChatHeader: FC<ChatHeaderProps> = ({
   chatWithMember,
 }) => {
   const t = useTranslations("meet.chat");
-  const { isGroup = false, title } = conversation;
+  const { isGroup = false, title, role, call_state } = conversation;
+
+  const canStartCall = role === "owner" || call_state === "open";
+  const canJoinCall = role === "owner" || call_state !== "closed";
 
   const headerMembers = useMemo(() => {
     if (!isGroup) return [];
@@ -67,20 +70,19 @@ const ChatHeader: FC<ChatHeaderProps> = ({
         <Show.When isTrue={isGroup && !isEmpty(members)}>
           <div className=" flex -space-x-2 me-auto">
             {headerMembers?.map(member => (
-                <AppTooltip title={member.username} key={member.id}>
-                  <span
-                    onClick={() => chatWithMember(member)}
-                    className="cursor-pointer"
-                  >
-                    <UserAvatar
-                      name={member.name}
-                      imageSrc={member.avatarUrl}
-                      className="size-6 shadow-sm"
-                    />
-                  </span>
-
-                </AppTooltip>
-              ))}
+              <AppTooltip title={member.username} key={member.id}>
+                <span
+                  onClick={() => chatWithMember(member)}
+                  className="cursor-pointer"
+                >
+                  <UserAvatar
+                    name={member.name}
+                    imageSrc={member.avatarUrl}
+                    className="size-6 shadow-sm"
+                  />
+                </span>
+              </AppTooltip>
+            ))}
           </div>
         </Show.When>
         <Show.Else>
@@ -97,7 +99,12 @@ const ChatHeader: FC<ChatHeaderProps> = ({
       <div className="row gap-2 shrink-0 ">
         <Show>
           <Show.When isTrue={isActiveCall && isGroup}>
-            <Button size="sm" className="!h-7" onClick={onJoinCall}>
+            <Button
+              size="sm"
+              className="!h-7"
+              onClick={onJoinCall}
+              disabled={!canJoinCall}
+            >
               {t("join_meet")}
             </Button>
           </Show.When>
@@ -108,6 +115,7 @@ const ChatHeader: FC<ChatHeaderProps> = ({
               onClick={() => onCall("audio")}
               title={t("voice_call")}
               className="bg-background-light"
+              disabled={!canStartCall}
             />
             <AppIconButton
               icon={sharedIcons.video}
@@ -115,6 +123,7 @@ const ChatHeader: FC<ChatHeaderProps> = ({
               onClick={() => onCall("video")}
               title={t("video_call")}
               className="bg-background-light"
+              disabled={!canStartCall}
             />
           </Show.Else>
         </Show>

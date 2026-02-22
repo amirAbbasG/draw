@@ -1,31 +1,14 @@
-import { ChatGroupSettings, type Decorator } from "@/components/features/meet/types";
+import { ChatSettings, type Decorator } from "@/components/features/meet/types";
 import { sharedIcons } from "@/constants/icons";
 
-
-
-
-
-export const DEFAULT_GROUP_SETTINGS: ChatGroupSettings = {
-  message: {
-    allowMembersToSend: true,
-    availability: "always",
-    schedule: { start: "08:00", end: "08:00", repeat: ["Su", "Mo"] },
-    allowedTypes: {
-      all: false,
-      textMessages: true,
-      images: true,
-      videos: true,
-      fileUploads: true,
-      links: false,
-    },
-    allowDeletion: true,
-  },
-  meeting: {
-    allowCreation: false,
-    chatDuringMeetingOnly: true,
-    allowRecording: true,
-  },
+export const DEFAULT_GROUP_SETTINGS: ChatSettings = {
+  call_state: "open",
+  chat_state: "open",
+  stream_state: "open",
+  collab_state: "open",
+  status: "active",
 };
+
 export const STATUS_CLASSES = {
   primary: {
     border: "border-primary",
@@ -55,11 +38,11 @@ export const STATUS_CLASSES = {
 };
 
 export const decorators: Decorator[] = [
-    {
-        id: "ai-decorator",
-        icon: sharedIcons.ai,
-        title: "AI Assistant",
-        description: "Mention AI for help",
-        key: "ai",
-    },
+  {
+    id: "ai-decorator",
+    icon: sharedIcons.ai,
+    title: "AI Assistant",
+    description: "Mention AI for help",
+    key: "ai",
+  },
 ];

@@ -2,15 +2,16 @@ import React, { type FC } from "react";
 
 import { useMediaQuery } from "usehooks-ts";
 
+import AddUserPopup from "@/components/features/meet/AddUserPopup";
 import LayoutSelector from "@/components/features/meet/call/LayoutSelector";
 import { GridSettings } from "@/components/features/meet/call/types";
+import { Conversation, MeetUser } from "@/components/features/meet/types";
 import EmojiPicker from "@/components/shared/EmojiPicker";
+import RenderIf from "@/components/shared/RenderIf";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
 import { cn } from "@/lib/utils";
 import { sharedIcons } from "@/constants/icons";
 import { useTranslations } from "@/i18n";
-import AddUserPopup from "@/components/features/meet/AddUserPopup";
-import {MeetUser} from "@/components/features/meet/types";
 
 const classes = {
   default: "border-primary text-primary",
@@ -36,7 +37,8 @@ interface CallActionsProps {
   onGridSettingsChange: (settings: GridSettings) => void;
   isOpenSidebar?: boolean;
   isRaisedHand?: boolean;
-  onInvite: (user: MeetUser) => void;
+  onInvite: (user: MeetUser, includeChat?: number) => void;
+  conversation: Conversation;
 }
 
 const Divider = () => (
@@ -61,7 +63,8 @@ const CallActions: FC<CallActionsProps> = ({
   onGridSettingsChange,
   isRaisedHand,
   toggleRaiseHand,
-    onInvite
+  onInvite,
+  conversation,
 }) => {
   const t = useTranslations("meet.call");
   const isSm = useMediaQuery("(max-width: 640px)"); // sm breakpoint
@@ -69,6 +72,11 @@ const CallActions: FC<CallActionsProps> = ({
   const isMobile = useMediaQuery("(max-width: 420px)"); // xs breakpoint
 
   const isCompact = isOpenSidebar ? isXl : isSm;
+
+  const { role, stream_state } = conversation;
+  const isOwner = role === "owner";
+  const canShareScreen = isOwner || stream_state === "open";
+  const showScreenShare = stream_state !== "closed";
 
   const getCommonProps = (
     selected?: boolean,
@@ -84,7 +92,7 @@ const CallActions: FC<CallActionsProps> = ({
       variant: "fill" as const,
       color: "background" as const,
       className: cn(
-        "border transition-colors duration-200",
+        "border transition-colors duration-200 disabled:border-background-darker disabled:!text-foreground-light",
         selected ? classes[color] : "border-transparent",
         extraClass,
       ),
@@ -123,16 +131,19 @@ const CallActions: FC<CallActionsProps> = ({
       />
 
       {/* Screen Share */}
-      <AppIconButton
-        icon={
-          isScreenSharing
-            ? sharedIcons.screen_share_off
-            : sharedIcons.screen_share
-        }
-        {...getCommonProps(isScreenSharing, "success")}
-        title={isScreenSharing ? t("stop_sharing") : t("share_screen")}
-        onClick={onToggleScreenShare}
-      />
+      <RenderIf isTrue={showScreenShare}>
+        <AppIconButton
+          icon={
+            isScreenSharing
+              ? sharedIcons.screen_share_off
+              : sharedIcons.screen_share
+          }
+          {...getCommonProps(isScreenSharing, "success")}
+          title={isScreenSharing ? t("stop_sharing") : t("share_screen")}
+          onClick={onToggleScreenShare}
+          disabled={!canShareScreen}
+        />
+      </RenderIf>
 
       <Divider />
 
@@ -177,11 +188,7 @@ const CallActions: FC<CallActionsProps> = ({
         />
       )}
 
-
-        <AddUserPopup
-          onInvite={onInvite}
-          triggerProps={getCommonProps()}
-        />
+      <AddUserPopup onInvite={onInvite} triggerProps={getCommonProps()} />
 
       <Divider />
 

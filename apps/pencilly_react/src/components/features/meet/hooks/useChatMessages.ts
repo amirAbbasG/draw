@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { decorators } from "@/components/features/meet/constants";
 import { useUser } from "@/stores/context/user";
 
+import { meetKeys } from "../query-keys";
 import type {
   ChatMessage,
   ConversationEvent,
@@ -40,10 +43,7 @@ interface UseChatMessagesReturn {
   clear: () => void;
 }
 
-/** Convert a raw event payload to a ChatMessage.
- * If the event already has `isCurrentUser` from the API, use that.
- * Otherwise, fall back to comparing `senderUserId` with `currentUserId`.
- */
+/** Convert a raw event payload to a ChatMessage. */
 function eventToMessage(
   event: ConversationEventPayload,
   userName?: string,
@@ -64,53 +64,109 @@ function eventToMessage(
     updatedAt: event.updatedAt,
     editedAt: event.editedAt,
     deletedAt: event.deletedAt,
-    isCurrentUser: event.isCurrentUser ?? (userName ?   userName === event.actor.username : false),
+    isCurrentUser:
+      event.isCurrentUser ??
+      (userName ? userName === event.actor?.username : false),
     displayStatus: event.status === "done" ? "sent" : event.status,
     replyTo: event.payload?.replyTo ?? undefined,
-    agentType: event.payload.agentType ?? event.agentType ?? undefined,
+    agentType: event.payload?.agentType ?? event.agentType ?? undefined,
   };
 }
 
 /**
  * Manages messages for the active conversation.
- * Fetches history via REST, receives real-time updates via WS,
- * and handles optimistic sending, editing, and deleting.
+ * Fetches history via useQuery (cached per conversationId for instant switching),
+ * receives real-time updates via WS, and handles optimistic sending,
+ * editing (useMutation), and deleting (useMutation).
  */
 export function useChatMessages({
   conversationId,
   wsSendMessage,
 }: UseChatMessagesOptions): UseChatMessagesReturn {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
   const api = useConversationApi();
   const { user } = useUser();
   const currentUserId = user?.id ?? 0;
   const pendingClientIds = useRef<Set<string>>(new Set());
-  const prevConversationId = useRef<string | null>(null);
 
-
-  // Fetch messages when conversation changes
-  useEffect(() => {
-    if (!conversationId || conversationId === prevConversationId.current)
-      return;
-    prevConversationId.current = conversationId;
-
-    const loadMessages = async () => {
-      setIsLoading(true);
-      setMessages([]);
-      const response = await api.fetchMessages(conversationId);
+  // ─── useQuery for messages (cached per conversationId) ─
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: meetKeys.messages(conversationId!),
+    queryFn: async () => {
+      const response = await api.fetchMessages(conversationId!);
       if (response?.items) {
-        // Sort by seq ascending
         const sorted = [...response.items].sort((a, b) => a.seq - b.seq);
-        setMessages(sorted.map(evt => eventToMessage(evt, user?.username)));
+        return sorted.map(evt => eventToMessage(evt, user?.username));
       }
-      setIsLoading(false);
-    };
+      return [] as ChatMessage[];
+    },
+    enabled: !!conversationId,
+  });
 
-    void loadMessages();
-  }, [conversationId, api, currentUserId]);
+  // ─── Cache helper ──────────────────────────────────────
 
-  /** Optimistic send via WS */
+  const setMessages = useCallback(
+    (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+      if (!conversationId) return;
+      queryClient.setQueryData<ChatMessage[]>(
+        meetKeys.messages(conversationId),
+        (prev = []) => updater(prev),
+      );
+    },
+    [queryClient, conversationId],
+  );
+
+  // ─── useMutation for edit ──────────────────────────────
+
+  const editMutation = useMutation({
+    mutationFn: async ({
+      eventId,
+      newText,
+    }: {
+      eventId: string;
+      newText: string;
+    }) => {
+      return api.editMessage(conversationId!, eventId, newText);
+    },
+
+    onSuccess: (result, { eventId }) => {
+      if (result?.event) {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === eventId
+              ? {
+                  ...m,
+                  body: result.event.body,
+                  editedAt: result.event.editedAt,
+                }
+              : m,
+          ),
+        );
+      }
+    },
+  });
+
+  // ─── useMutation for delete ────────────────────────────
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ eventId }: { eventId: string }) => {
+      return api.deleteMessage(conversationId!, eventId);
+    },
+    onSuccess: (result, { eventId }) => {
+      if (result?.event) {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === eventId
+              ? { ...m, body: "", deletedAt: result.event.deletedAt }
+              : m,
+          ),
+        );
+      }
+    },
+  });
+
+  // ─── Optimistic send via WS ────────────────────────────
+
   const sendMessage = useCallback(
     (text: string, replyToId?: string) => {
       if (!conversationId) return;
@@ -118,7 +174,7 @@ export function useChatMessages({
       const clientEventId = generateClientEventId();
       pendingClientIds.current.add(clientEventId);
       const decorator = extractDecoratorsFromText(text, decorators);
-      // Add optimistic message
+
       const optimistic: ChatMessage = {
         id: clientEventId,
         conversationId,
@@ -153,52 +209,29 @@ export function useChatMessages({
         decorator.firstId,
       );
     },
-    [conversationId, currentUserId, user, wsSendMessage],
+    [conversationId, currentUserId, user, wsSendMessage, setMessages],
   );
 
-  /** Edit a message via REST */
+  /** Wrapper around editMutation that matches the original async signature */
   const editMessage = useCallback(
     async (eventId: string, newText: string) => {
       if (!conversationId) return;
-
-      const result = await api.editMessage(conversationId, eventId, newText);
-      if (result?.event) {
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === eventId
-              ? {
-                  ...m,
-                  body: result.event.body,
-                  editedAt: result.event.editedAt,
-                }
-              : m,
-          ),
-        );
-      }
+      editMutation.mutate({ eventId, newText });
     },
-    [conversationId, api],
+    [conversationId, editMutation],
   );
 
-  /** Delete a message via REST */
+  /** Wrapper around deleteMutation that matches the original async signature */
   const deleteMessage = useCallback(
     async (eventId: string) => {
       if (!conversationId) return;
-
-      const result = await api.deleteMessage(conversationId, eventId);
-      if (result?.event) {
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === eventId
-              ? { ...m, body: "", deletedAt: result.event.deletedAt }
-              : m,
-          ),
-        );
-      }
+      deleteMutation.mutate({ eventId });
     },
-    [conversationId, api],
+    [conversationId, deleteMutation],
   );
 
-  /** Handle incoming WS conversation:event for this conversation */
+  // ─── WS handler ───────────────────────────────────────
+
   const handleWsMessage = useCallback(
     (message: WsServerMessage) => {
       if (message.type !== "conversation:event") return;
@@ -208,7 +241,6 @@ export function useChatMessages({
 
       const { event } = wsEvent;
 
-      // Only handle message and agent-type events
       if (!(event.type === "message" || event.type === "agent")) return;
 
       // Check if this is a response to our optimistic message
@@ -217,7 +249,6 @@ export function useChatMessages({
         pendingClientIds.current.has(event.clientEventId)
       ) {
         pendingClientIds.current.delete(event.clientEventId);
-        // Replace optimistic message with server-confirmed one
         setMessages(prev =>
           prev.map(m =>
             m.clientEventId === event.clientEventId
@@ -228,11 +259,7 @@ export function useChatMessages({
         return;
       }
 
-      // Special handling for AI decorator agent responses which are sent as
-      // two WS events in a row (status: pending then status: done) without
-      // a clientEventId. We need to create a pending message when the
-      // pending event arrives, then update that same message when the done
-      // event arrives (they share the same event.id).
+      // AI decorator agent responses handling
       const isAiDecorator =
         event.subtype === "ai-decorator" ||
         event.payload?.agentType === "ai-decorator" ||
@@ -240,7 +267,6 @@ export function useChatMessages({
 
       if (isAiDecorator) {
         if (event.status === "pending") {
-          // Create or refresh a pending AI message with this event.id
           setMessages(prev => {
             const exists = prev.some(m => m.id === event.id);
             if (exists) {
@@ -251,7 +277,8 @@ export function useChatMessages({
                       status: event.status,
                       payload: event.payload,
                       updatedAt: event.updatedAt,
-                      displayStatus: event.status === "done" ? "sent" : event.status,
+                      displayStatus:
+                        event.status === "done" ? "sent" : event.status,
                     }
                   : m,
               );
@@ -262,9 +289,10 @@ export function useChatMessages({
         }
 
         if (event.status === "done") {
-          // Update existing AI message (pending -> done)
           setMessages(prev =>
-            prev.map(m => (m.id === event.id ? eventToMessage(event, user?.username) : m)),
+            prev.map(m =>
+              m.id === event.id ? eventToMessage(event, user?.username) : m,
+            ),
           );
           return;
         }
@@ -301,13 +329,18 @@ export function useChatMessages({
         return [...prev, eventToMessage(event, user?.username)];
       });
     },
-    [conversationId, currentUserId],
+    [conversationId, currentUserId, setMessages, user?.username],
   );
 
+  // ─── Clear ────────────────────────────────────────────
+
   const clear = useCallback(() => {
-    setMessages([]);
-    prevConversationId.current = null;
-  }, []);
+    if (conversationId) {
+      queryClient.removeQueries({
+        queryKey: meetKeys.messages(conversationId),
+      });
+    }
+  }, [queryClient, conversationId]);
 
   return {
     messages,

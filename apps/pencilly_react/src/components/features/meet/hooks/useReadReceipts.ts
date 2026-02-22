@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { meetKeys } from "../query-keys";
+import type { WsReadUpdatedMessage, WsServerMessage } from "../types";
 import { useConversationApi } from "./useConversationApi";
-import type { ReadReceipt, WsReadUpdatedMessage, WsServerMessage } from "../types";
 
 interface UseReadReceiptsOptions {
   /** The active conversation ID */
@@ -21,60 +24,78 @@ interface UseReadReceiptsReturn {
 
 /**
  * Manages read receipts for the active conversation.
- * Fetches initial read-by via REST, then updates from WS events.
+ * Fetches initial read-by via useQuery (cached per conversationId),
+ * then updates from WS events via queryClient.setQueryData.
  */
-export function useReadReceipts({ conversationId, wsMarkRead }: UseReadReceiptsOptions): UseReadReceiptsReturn {
-  const [readReceipts, setReadReceipts] = useState<Map<number, number[]>>(new Map());
+export function useReadReceipts({
+  conversationId,
+  wsMarkRead,
+}: UseReadReceiptsOptions): UseReadReceiptsReturn {
+  const queryClient = useQueryClient();
   const api = useConversationApi();
   const lastSentSeq = useRef(0);
-  const prevConversationId = useRef<string | null>(null);
 
-  // Fetch initial read-by when conversation changes
-  useEffect(() => {
-    if (!conversationId || conversationId === prevConversationId.current) return;
-    prevConversationId.current = conversationId;
-    lastSentSeq.current = 0;
-
-    const load = async () => {
-      const response = await api.fetchReadBy(conversationId, 0, 200);
+  // ─── useQuery for read receipts ────────────────────────
+  const { data: readReceipts = new Map<number, number[]>() } = useQuery({
+    queryKey: meetKeys.readReceipts(conversationId!),
+    queryFn: async () => {
+      lastSentSeq.current = 0;
+      const response = await api.fetchReadBy(conversationId!, 0, 200);
+      const map = new Map<number, number[]>();
       if (response?.items) {
-        const map = new Map<number, number[]>();
         for (const item of response.items) {
           map.set(item.seq, item.user_ids);
         }
-        setReadReceipts(map);
       }
-    };
+      return map;
+    },
+    enabled: !!conversationId,
+  });
 
-    load();
-  }, [conversationId, api]);
+  // ─── Cache helper ──────────────────────────────────────
+
+  const setReadReceipts = useCallback(
+    (updater: (prev: Map<number, number[]>) => Map<number, number[]>) => {
+      if (!conversationId) return;
+      queryClient.setQueryData<Map<number, number[]>>(
+        meetKeys.readReceipts(conversationId),
+        (prev = new Map()) => updater(prev),
+      );
+    },
+    [queryClient, conversationId],
+  );
 
   /** Mark messages up to `seq` as read via WS */
-  const markAsRead = useCallback((seq: number) => {
-    if (!conversationId || seq <= lastSentSeq.current) return;
-    lastSentSeq.current = seq;
-    wsMarkRead(conversationId, seq);
-  }, [conversationId, wsMarkRead]);
+  const markAsRead = useCallback(
+    (seq: number) => {
+      if (!conversationId || seq <= lastSentSeq.current) return;
+      lastSentSeq.current = seq;
+      wsMarkRead(conversationId, seq);
+    },
+    [conversationId, wsMarkRead],
+  );
 
   /** Handle read_updated events from WS */
-  const handleWsMessage = useCallback((message: WsServerMessage) => {
-    if (message.type !== "conversation:read_updated") return;
+  const handleWsMessage = useCallback(
+    (message: WsServerMessage) => {
+      if (message.type !== "conversation:read_updated") return;
 
-    const readMsg = message as WsReadUpdatedMessage;
-    if (readMsg.conversationId !== conversationId) return;
+      const readMsg = message as WsReadUpdatedMessage;
+      if (readMsg.conversationId !== conversationId) return;
 
-    setReadReceipts(prev => {
-      const next = new Map(prev);
-      // Update all seqs up to lastReadSeq for this user
-      for (let seq = 1; seq <= readMsg.lastReadSeq; seq++) {
-        const existing = next.get(seq) ?? [];
-        if (!existing.includes(readMsg.userId)) {
-          next.set(seq, [...existing, readMsg.userId]);
+      setReadReceipts(prev => {
+        const next = new Map(prev);
+        for (let seq = 1; seq <= readMsg.lastReadSeq; seq++) {
+          const existing = next.get(seq) ?? [];
+          if (!existing.includes(readMsg.userId)) {
+            next.set(seq, [...existing, readMsg.userId]);
+          }
         }
-      }
-      return next;
-    });
-  }, [conversationId]);
+        return next;
+      });
+    },
+    [conversationId, setReadReceipts],
+  );
 
   return {
     readReceipts,

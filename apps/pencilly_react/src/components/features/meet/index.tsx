@@ -73,7 +73,6 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     removeConversation,
     activeConversation,
     setActiveConversation,
-    handleTitleEdit,
     handleOpenChat,
     setConversations,
   } = useConversations(setIsOpen);
@@ -133,6 +132,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
   // ─── WS handler that dispatches to all sub-hooks ───────
   const handleWsMessage = useCallback(
     (message: WsServerMessage) => {
+      console.log("Received WS message:", message);
       // Dispatch to sub-handlers (unchanged)
       handleConversationsWs(message);
       meetCall.handleWsMessage(message);
@@ -229,7 +229,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
           : [
               {
                 id: "group",
-                avatarUrl: conversation.avatarUrl,
+                avatarUrl: conversation.profile_image_url,
                 name: conversation?.title || "Group Call",
                 username: conversation?.id,
               },
@@ -246,11 +246,12 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     [meetCall, apiMembers],
   );
 
-  const handeInviteUser = useCallback(
+  const handleInviteUser = useCallback(
     async (
       user: MeetUser,
       inviteToCal: boolean = true,
       conversationId?: string,
+      includeChat?: number,
     ) => {
       const cId = conversationId || meetCall.activeConversationId;
       if (cId) {
@@ -258,9 +259,10 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
           meetCall.addPending([user]);
         }
         await conversationApi.addToConversation(
-            cId,
+          cId,
           +user.id,
           inviteToCal,
+          includeChat,
         );
       }
     },
@@ -365,7 +367,15 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
         appLayoutMain &&
         createPortal(
           <CallView
-            onInviteUser={handeInviteUser}
+            onInviteUser={(user, includeChat) =>
+              handleInviteUser(
+                user,
+                true,
+                meetCall.activeConversationId,
+                includeChat,
+              )
+            }
+            conversation={conversations.find(c => c.id === meetCall.activeConversationId) ?? null}
             participants={meetCall.participants}
             room={room}
             title={callTitle}
@@ -453,11 +463,10 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
                   void handleConversationCall(activeConversation, type);
                 }
               }}
-              onTitleEdit={handleTitleEdit}
               onDeleteMember={handleKickFromConversation}
               className="flex-1 overflow-hidden"
               onMuteToggle={handleMuteToggle}
-              handeInviteUser={handeInviteUser}
+              handeInviteUser={handleInviteUser}
               isInCall={!!meetCall.activeConversationId}
               chatWithMember={startChatWithUser}
               isLoadingMessages={chatMessages.isLoading}
