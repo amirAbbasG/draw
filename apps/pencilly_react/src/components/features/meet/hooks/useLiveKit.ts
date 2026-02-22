@@ -6,6 +6,7 @@ import {
   LocalVideoTrack,
   createLocalTracks,
   type LocalTrack as LKLocalTrack,
+  type RemoteTrack as LKRemoteTrack,
   type RemoteTrackPublication,
   type RemoteParticipant,
   type Participant as LKParticipant,
@@ -96,7 +97,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
         room.on(
           RoomEvent.TrackSubscribed,
           (
-            track: LKLocalTrack,
+            track: LKRemoteTrack,
             pub: RemoteTrackPublication,
             participant: RemoteParticipant,
           ) => {
@@ -111,7 +112,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
             if (track.kind === "audio" && mediaStreamTrack) {
               const audioEl = document.createElement("audio");
               audioEl.autoplay = true;
-              audioEl.playsInline = true;
+              audioEl.setAttribute("playsinline", "true");
               audioEl.srcObject = new MediaStream([mediaStreamTrack]);
               audioEl.style.display = "none";
               document.body.appendChild(audioEl);
@@ -137,7 +138,7 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
         );
 
         // --- Track Unsubscribed ---
-        room.on(RoomEvent.TrackUnsubscribed, (track: LKLocalTrack) => {
+        room.on(RoomEvent.TrackUnsubscribed, (track: LKRemoteTrack) => {
           const audioEl = audioElementsRef.current.get(track.sid);
           if (audioEl) {
             audioEl.pause();
