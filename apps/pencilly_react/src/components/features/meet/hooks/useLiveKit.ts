@@ -1,37 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  LocalVideoTrack,
+  createLocalTracks,
+  type LocalTrack as LKLocalTrack,
+  type RemoteTrack as LKRemoteTrack,
+  type RemoteTrackPublication,
+  type RemoteParticipant,
+  type Participant as LKParticipant,
+  type LocalTrackPublication,
+} from "livekit-client";
 
 import type {
   LocalTrack,
   Participant,
   RemoteTrack,
-  ConnectionState
+  ConnectionState,
 } from "@/components/features/call/types";
 import { useTranslations } from "@/i18n";
-import {useUser} from "@/stores/context/user";
+import { useUser } from "@/stores/context/user";
 
 interface UseLiveKitOptions {
   onStatusChange?: (status: string) => void;
 }
 
-
-const getMetadata = (participant: any) => {
-  const raw = participant?.metadata ?? participant?.info?.metadata;
+const getMetadata = (participant: LKParticipant) => {
+  const raw = participant?.metadata;
   if (!raw || typeof raw !== "string" || raw.trim() === "") return undefined;
 
   try {
     const metadata = JSON.parse(raw);
     return {
       profileImage: metadata?.profileImage || metadata?.profile_image_url,
-      username: metadata?.username || participant.identity
-    }
+      username: metadata?.username || participant.identity,
+    };
   } catch {
     return {
       profileImage: undefined,
-      username: participant.identity
-    }
+      username: participant.identity,
+    };
   }
 };
-
 
 export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const t = useTranslations("call.status");
@@ -43,15 +54,16 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
   const [micMuted, setMicMuted] = useState(false);
   const [cameraMuted, setCameraMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isVolumeMuted, setIsVolumeMuted] = useState(false)
-  const {user: userData} = useUser()
+  const [isVolumeMuted, setIsVolumeMuted] = useState(false);
+  const { user: userData } = useUser();
 
-  const isAnyoneSharing = remoteTracks.some((t) => t.kind === "video" && t.source === "screen")
+  const isAnyoneSharing = remoteTracks.some(
+      (t) => t.kind === "video" && t.source === "screen",
+  );
 
-  const roomRef = useRef<any>(null);
-  const livekitRef = useRef<any>(null);
-  const screenTrackRef = useRef<any>(null);
-  const localTracksRef = useRef<any[]>([]);
+  const roomRef = useRef<Room | null>(null);
+  const screenTrackRef = useRef<LocalVideoTrack | null>(null);
+  const localTracksRef = useRef<LKLocalTrack[]>([]);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const status = useCallback(
@@ -61,95 +73,72 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
       [onStatusChange],
   );
 
-  const loadLiveKit = useCallback(async () => {
-    if (livekitRef.current) return livekitRef.current;
-
-    const script = document.createElement("script");
-    script.src =
-        "https://unpkg.com/livekit-client@2.16.1/dist/livekit-client.umd.js";
-    script.async = true;
-
-    await new Promise<void>((resolve, reject) => {
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error(t("load_failed")));
-      document.head.appendChild(script);
-    });
-
-    const livekit =
-        (window as any).LivekitClient ||
-        (window as any).LiveKit ||
-        (window as any).LiveKitClient ||
-        (window as any).livekit;
-
-    if (!livekit) {
-      throw new Error(t("missing_global"));
-    }
-
-    livekitRef.current = livekit;
-    return livekit;
-  }, []);
-
-  // NOTE: added options.publishVideo to control whether video tracks are created/published
   const join = useCallback(
-      async (livekitUrl: string, token: string, displayName?: string, profileImage?: string, options?: { publishVideo?: boolean }) => {
+      async (
+          livekitUrl: string,
+          token: string,
+          displayName?: string,
+          profileImage?: string,
+          options?: { publishVideo?: boolean },
+      ) => {
         try {
           setConnectionState("connecting");
           status(t("loading"));
-
-          const livekit = await loadLiveKit();
 
           if (!livekitUrl) {
             throw new Error(t("url_not_configured"));
           }
 
           status(t("connecting"));
-          const room = new livekit.Room();
+          const room = new Room();
           roomRef.current = room;
 
+          // --- Track Subscribed ---
           room.on(
-              livekit.RoomEvent.TrackSubscribed,
-              (track: any, pub: any, participant: any) => {
-                if (track.kind === "video" || track.kind === "audio") {
-                  const isScreenShare =
-                      pub?.source === livekit.Track?.Source?.ScreenShare ||
-                      pub?.source === "screen_share" ||
-                      track?.source === livekit.Track?.Source?.ScreenShare ||
-                      track?.source === "screen_share" ||
-                      pub?.trackName?.toLowerCase()?.includes("screen") ||
-                      pub?.name?.toLowerCase()?.includes("screen") ||
-                      track?.name?.toLowerCase()?.includes("screen");
+              RoomEvent.TrackSubscribed,
+              (
+                  track: LKRemoteTrack,
+                  pub: RemoteTrackPublication,
+                  participant: RemoteParticipant,
+              ) => {
+                if (track.kind !== "video" && track.kind !== "audio") return;
 
-                  const mediaStreamTrack = track.mediaStreamTrack || track.track;
+                const isScreenShare =
+                    pub.source === Track.Source.ScreenShare ||
+                    track.source === Track.Source.ScreenShare;
 
-                  if (track.kind === "audio" && mediaStreamTrack) {
-                    const audioEl = document.createElement("audio");
-                    audioEl.autoplay = true;
-                    //@ts-ignore
-                    audioEl.playsInline = true;
-                    audioEl.srcObject = new MediaStream([mediaStreamTrack]);
-                    audioEl.style.display = "none";
-                    document.body.appendChild(audioEl);
-                    audioEl.play().catch(() => {});
-                    audioElementsRef.current.set(track.sid, audioEl);
-                  }
-                  setRemoteTracks(prev => [
-                    ...prev,
-                    {
-                      kind: track.kind,
-                      participantIdentity: participant.identity,
-                      participantName: participant.name,
-                      participantProfileImage: getMetadata(participant).profileImage,
-                      track: mediaStreamTrack,
-                      sid: track.sid,
-                      source: isScreenShare ? "screen" : "camera",
-                      isMuted: pub?.isMuted || false,
-                    },
-                  ]);
+                const mediaStreamTrack = track.mediaStreamTrack;
+
+                if (track.kind === "audio" && mediaStreamTrack) {
+                  const audioEl = document.createElement("audio");
+                  audioEl.autoplay = true;
+                  audioEl.setAttribute("playsinline", "true");
+                  audioEl.srcObject = new MediaStream([mediaStreamTrack]);
+                  audioEl.style.display = "none";
+                  document.body.appendChild(audioEl);
+                  audioEl.play().catch(() => {});
+                  audioElementsRef.current.set(track.sid, audioEl);
                 }
+
+                setRemoteTracks((prev) => [
+                  ...prev,
+                  {
+                    kind: track.kind as "audio" | "video",
+                    participantIdentity: participant.identity,
+                    participantName: participant.name,
+                    participantProfileImage: getMetadata(participant)
+                        ?.profileImage,
+                    track: mediaStreamTrack,
+                    sid: track.sid,
+                    source: isScreenShare ? "screen" : "camera",
+                    isMuted: pub.isMuted || false,
+                  },
+                ]);
               },
           );
 
-          room.on(livekit.RoomEvent.TrackUnsubscribed, (track: any) => {
+          // --- Track Unsubscribed ---
+          room.on(RoomEvent.TrackUnsubscribed, (track: LKRemoteTrack) => {
             const audioEl = audioElementsRef.current.get(track.sid);
             if (audioEl) {
               audioEl.pause();
@@ -157,68 +146,98 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
               audioEl.remove();
               audioElementsRef.current.delete(track.sid);
             }
-            setRemoteTracks(prev => prev.filter(t => t.sid !== track.sid));
+            setRemoteTracks((prev) => prev.filter((t) => t.sid !== track.sid));
           });
 
-          room.on(livekit.RoomEvent.TrackMuted, (pub: any, _participant: any) => {
-            const mutedAudioEl = audioElementsRef.current.get(pub.trackSid);
-            if (mutedAudioEl) {
-              mutedAudioEl.muted = true;
-            }
-            setRemoteTracks(prev =>
-                prev.map(t =>
-                    t.sid === pub.trackSid
-                        ? { ...t, isMuted: true }
-                        : t
-                )
-            );
-          });
-
-          room.on(livekit.RoomEvent.TrackUnmuted, (pub: any, _participant: any) => {
-            const unmutedAudioEl = audioElementsRef.current.get(pub.trackSid);
-            if (unmutedAudioEl) {
-              unmutedAudioEl.muted = false;
-            }
-            setRemoteTracks(prev =>
-                prev.map(t =>
-                    t.sid === pub.trackSid
-                        ? { ...t, isMuted: false }
-                        : t
-                )
-            );
-          });
-
-          room.on(livekit.RoomEvent.ParticipantConnected, (participant: any) => {
-            setParticipants(prev => [
-              ...prev,
-              {
-                identity: participant.identity,
-                name: participant.name,
-                profileImage: getMetadata(participant).profileImage,
-                username:  getMetadata(participant).username,
-                isLocal: false,
-              },
-            ]);
-            status(`${participant.name || participant.identity} joined`);
-          });
-
+          // --- Track Muted ---
           room.on(
-              livekit.RoomEvent.ParticipantDisconnected,
-              (participant: any) => {
-                setParticipants(prev =>
-                    prev.filter(p => p.identity !== participant.identity),
+              RoomEvent.TrackMuted,
+              (pub: LocalTrackPublication | RemoteTrackPublication) => {
+                const mutedAudioEl = audioElementsRef.current.get(pub.trackSid);
+                if (mutedAudioEl) {
+                  mutedAudioEl.muted = true;
+                }
+                setRemoteTracks((prev) =>
+                    prev.map((t) =>
+                        t.sid === pub.trackSid ? { ...t, isMuted: true } : t,
+                    ),
                 );
-                status(`${participant.name || participant.identity} left`);
               },
           );
 
-          await room.connect(livekitUrl, token);
+          // --- Track Unmuted ---
+          room.on(
+              RoomEvent.TrackUnmuted,
+              (pub: LocalTrackPublication | RemoteTrackPublication) => {
+                const unmutedAudioEl = audioElementsRef.current.get(pub.trackSid);
+                if (unmutedAudioEl) {
+                  unmutedAudioEl.muted = false;
+                }
+                setRemoteTracks((prev) =>
+                    prev.map((t) =>
+                        t.sid === pub.trackSid ? { ...t, isMuted: false } : t,
+                    ),
+                );
+              },
+          );
 
+          // --- Participant Connected ---
+          room.on(
+              RoomEvent.ParticipantConnected,
+              (participant: RemoteParticipant) => {
+                const meta = getMetadata(participant);
+                setParticipants((prev) => [
+                  ...prev,
+                  {
+                    identity: participant.identity,
+                    name: participant.name,
+                    profileImage: meta?.profileImage,
+                    username: meta?.username ?? participant.identity,
+                    isLocal: false,
+                    isSpeaking: false,
+                  },
+                ]);
+                status(
+                    `${participant.name || participant.identity} joined`,
+                );
+              },
+          );
+
+          // --- Participant Disconnected ---
+          room.on(
+              RoomEvent.ParticipantDisconnected,
+              (participant: RemoteParticipant) => {
+                setParticipants((prev) =>
+                    prev.filter((p) => p.identity !== participant.identity),
+                );
+                status(
+                    `${participant.name || participant.identity} left`,
+                );
+              },
+          );
+
+          // --- Active Speakers Changed (isSpeaking) ---
+          room.on(
+              RoomEvent.ActiveSpeakersChanged,
+              (speakers: LKParticipant[]) => {
+                const speakingIdentities = new Set(
+                    speakers.map((s) => s.identity),
+                );
+                setParticipants((prev) =>
+                    prev.map((p) => ({
+                      ...p,
+                      isSpeaking: speakingIdentities.has(p.identity),
+                    })),
+                );
+              },
+          );
+
+          // --- Connect ---
+          await room.connect(livekitUrl, token);
           status(t("publishing"));
 
-          // decide whether to publish video based on options.publishVideo (default true)
           const publishVideo = options?.publishVideo !== false;
-          const tracks = await livekit.createLocalTracks({
+          const tracks = await createLocalTracks({
             audio: true,
             video: publishVideo,
           });
@@ -229,73 +248,79 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
           for (const track of tracks) {
             await room.localParticipant.publishTrack(track);
             newLocalTracks.push({
-              kind: track.kind,
-              track: track.mediaStreamTrack || track.track,
+              kind: track.kind as "audio" | "video",
+              track: track.mediaStreamTrack,
               sid: track.sid,
               muted: false,
-              source: (track.source ?? undefined) as any,
+              source: (track.source ?? undefined) as LocalTrack["source"],
             });
           }
 
           setLocalTracks(newLocalTracks);
-
-          // If we didn't publish video, reflect camera muted state
           setCameraMuted(!publishVideo);
 
-          setParticipants([
+          // Set initial participants
+          const localMeta = getMetadata(room.localParticipant);
+          const initialParticipants: Participant[] = [
             {
               identity: room.localParticipant.identity,
               name: room.localParticipant.name || displayName,
-              profileImage: profileImage || userData.profile_image_url || getMetadata(room.localParticipant)?.profileImage,
-              username: userData.username || getMetadata(room.localParticipant)?.username,
+              profileImage:
+                  profileImage ||
+                  userData.profile_image_url ||
+                  localMeta?.profileImage,
+              username:
+                  userData.username || localMeta?.username || room.localParticipant.identity,
               isLocal: true,
+              isSpeaking: false,
             },
-          ]);
+          ];
 
-          room.remoteParticipants.forEach((participant: any) => {
-            setParticipants(prev => [
-              ...prev,
-              {
-                identity: participant.identity,
-                name: participant.name,
-                profileImage: getMetadata(participant)?.profileImage,
-                username: getMetadata(participant)?.username,
-                isLocal: false,
-              },
-            ]);
+          room.remoteParticipants.forEach((participant: RemoteParticipant) => {
+            const meta = getMetadata(participant);
+            initialParticipants.push({
+              identity: participant.identity,
+              name: participant.name,
+              profileImage: meta?.profileImage,
+              username: meta?.username ?? participant.identity,
+              isLocal: false,
+              isSpeaking: participant.isSpeaking,
+            });
           });
 
+          setParticipants(initialParticipants);
           setConnectionState("connected");
           status("connected");
-        } catch (err: any) {
+        } catch (err: unknown) {
           setConnectionState("disconnected");
-          status(err.message || t("connection_failed"));
+          const message =
+              err instanceof Error ? err.message : t("connection_failed");
+          status(message);
           throw err;
         }
       },
-      [loadLiveKit, status, t],
+      [status, t, userData],
   );
 
-
   const leave = useCallback(() => {
+    // Stop screen share track
     if (screenTrackRef.current) {
       const ref = screenTrackRef.current;
       try {
-        roomRef.current?.localParticipant?.unpublishTrack(ref)
-        if (typeof ref.stop === "function") ref.stop()
-        const raw = ref.mediaStreamTrack ?? ref.track;
-        if (raw && typeof raw.stop === "function") raw.stop()
+        void roomRef.current?.localParticipant?.unpublishTrack(ref);
+        ref.stop();
       } catch {}
-      screenTrackRef.current = null
+      screenTrackRef.current = null;
     }
 
+    // Stop all local tracks
     for (const track of localTracksRef.current) {
       try {
-        roomRef.current?.localParticipant?.unpublishTrack(track)
-        track.stop()
+        void roomRef.current?.localParticipant?.unpublishTrack(track);
+        track.stop();
       } catch {}
     }
-    localTracksRef.current = []
+    localTracksRef.current = [];
 
     // Clean up all remote audio elements
     audioElementsRef.current.forEach((audioEl) => {
@@ -305,95 +330,84 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     });
     audioElementsRef.current.clear();
 
+    // Disconnect room
     if (roomRef.current) {
       try {
-        roomRef.current.disconnect()
+        void roomRef.current.disconnect();
       } catch {}
-      roomRef.current = null
+      roomRef.current = null;
     }
 
-    setLocalTracks([])
-    setRemoteTracks([])
-    setParticipants([])
-    setMicMuted(false)
-    setCameraMuted(false)
-    setIsScreenSharing(false)
-    setConnectionState("disconnected")
-    status("Disconnected")
+    setLocalTracks([]);
+    setRemoteTracks([]);
+    setParticipants([]);
+    setMicMuted(false);
+    setCameraMuted(false);
+    setIsScreenSharing(false);
+    setConnectionState("disconnected");
+    status("Disconnected");
   }, [status]);
 
   const toggleMic = useCallback(async () => {
-    const track = localTracksRef.current.find((t: any) => t.kind === "audio");
+    const track = localTracksRef.current.find(
+        (t: LKLocalTrack) => t.kind === "audio",
+    );
     if (!track) return;
 
     try {
       if (micMuted) {
-        if (typeof track.unmute === "function") {
-          await track.unmute();
-        } else if (track.mediaStreamTrack) {
-          track.mediaStreamTrack.enabled = true;
-        }
+        await track.unmute();
       } else {
-        if (typeof track.mute === "function") {
-          await track.mute();
-        } else if (track.mediaStreamTrack) {
-          track.mediaStreamTrack.enabled = false;
-        }
+        await track.mute();
       }
 
-      // Add this to trigger re-render
-      setLocalTracks(prev =>
-          prev.map(t =>
+      setLocalTracks((prev) =>
+          prev.map((t) =>
               t.kind === "audio"
-                  ? { ...t, track: track.mediaStreamTrack || track.track }
-                  : t
-          )
+                  ? { ...t, track: track.mediaStreamTrack }
+                  : t,
+          ),
       );
 
       setMicMuted(!micMuted);
-    } catch (err: any) {
-      status(err.message || t("mic_toggle_failed"));
+    } catch (err: unknown) {
+      const message =
+          err instanceof Error ? err.message : t("mic_toggle_failed");
+      status(message);
     }
-  }, [micMuted, status]);
+  }, [micMuted, status, t]);
 
   const toggleCamera = useCallback(async () => {
-    const track = localTracksRef.current.find((t: any) => t.kind === "video");
+    const track = localTracksRef.current.find(
+        (t: LKLocalTrack) => t.kind === "video",
+    );
     if (!track) return;
 
     try {
       if (cameraMuted) {
-        // Unmuting - enable the track
-        if (typeof track.unmute === "function") {
-          await track.unmute();
-        } else if (track.mediaStreamTrack) {
-          track.mediaStreamTrack.enabled = true;
-        }
+        await track.unmute();
       } else {
-        // Muting - disable the track
-        if (typeof track.mute === "function") {
-          await track.mute();
-        } else if (track.mediaStreamTrack) {
-          track.mediaStreamTrack.enabled = false;
-        }
+        await track.mute();
       }
 
-      // Update local tracks to trigger re-render
-      setLocalTracks(prev =>
-          prev.map(t =>
+      setLocalTracks((prev) =>
+          prev.map((t) =>
               t.kind === "video" && t.source !== "screen"
-                  ? { ...t, track: track.mediaStreamTrack || track.track }
-                  : t
-          )
+                  ? { ...t, track: track.mediaStreamTrack }
+                  : t,
+          ),
       );
 
       setCameraMuted(!cameraMuted);
-    } catch (err: any) {
-      status(err.message || t("camera_toggle_failed"));
+    } catch (err: unknown) {
+      const message =
+          err instanceof Error ? err.message : t("camera_toggle_failed");
+      status(message);
     }
-  }, [cameraMuted, status]);
+  }, [cameraMuted, status, t]);
 
   const startScreenShare = useCallback(async () => {
-    if (!roomRef.current || !livekitRef.current) return;
+    if (!roomRef.current) return;
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
       status("Screen sharing is not supported on this device");
@@ -401,111 +415,78 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     }
 
     if (isAnyoneSharing) {
-      status("Someone else is already sharing their screen")
-      return
+      status("Someone else is already sharing their screen");
+      return;
     }
-    const livekit = livekitRef.current
 
     try {
-      // Use getDisplayMedia directly with constraints that prevent tab capture.
-      // Allowing browser-tab capture causes an infinite mirror effect because
-      // the captured tab contains the <video> showing the capture itself.
-      // By restricting to monitor/window only we prevent this entirely for all
-      // participants (local AND remote).
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          // Prefer monitor or window – NOT browser tab
-          // @ts-ignore – displaySurface is valid but not in all TS definitions
           displaySurface: "monitor",
         },
         audio: false,
-        // @ts-ignore – these are valid Chrome 107+ constraints
         selfBrowserSurface: "exclude",
         preferCurrentTab: false,
         surfaceSwitching: "exclude",
-      } as any)
+      } as DisplayMediaStreamOptions);
 
-      const mediaTrack = stream.getVideoTracks()[0]
+      const mediaTrack = stream.getVideoTracks()[0];
       if (!mediaTrack) {
-        throw new Error("Failed to create screen track")
+        throw new Error("Failed to create screen track");
       }
 
-      // Wrap the raw MediaStreamTrack in a LiveKit LocalVideoTrack so it can
-      // be published with the correct source metadata.
-      let screenTrack: any
-      const LVT = livekit.LocalVideoTrack
-      if (LVT) {
-        // LiveKit 2.x exposes LocalVideoTrack
-        screenTrack = new LVT(mediaTrack, undefined, false)
-      } else {
-        // Fallback: use createLocalScreenTracks as a factory then swap in our
-        // constrained track. This shouldn't normally happen with livekit 2.16.
-        screenTrack = mediaTrack
-      }
+      const screenTrack = new LocalVideoTrack(mediaTrack, undefined, false);
 
-      // Publish with explicit source option
       await roomRef.current.localParticipant.publishTrack(screenTrack, {
-        source: livekit.Track.Source.ScreenShare,
+        source: Track.Source.ScreenShare,
         name: "screen_share",
-      })
+      });
 
-      screenTrackRef.current = screenTrack
-
-      const publishedMediaTrack =
-          screenTrack?.mediaStreamTrack ?? screenTrack?.track ?? mediaTrack
+      screenTrackRef.current = screenTrack;
 
       setLocalTracks((prev) => [
         ...prev,
         {
           kind: "video",
-          track: publishedMediaTrack,
-          sid: screenTrack?.sid ?? "local-screen",
+          track: screenTrack.mediaStreamTrack,
+          sid: screenTrack.sid ?? "local-screen",
           muted: false,
           source: "screen",
         },
-      ])
+      ]);
 
       // Handle when user stops sharing via browser UI
       mediaTrack.addEventListener("ended", () => {
-        stopScreenShare()
-      })
-
+        stopScreenShare();
+      });
 
       setIsScreenSharing(true);
       status(t("screen_started"));
-    } catch (err: any) {
-      status(err.message || t("screen_failed"));
+    } catch (err: unknown) {
+      const message =
+          err instanceof Error ? err.message : t("screen_failed");
+      status(message);
     }
-  }, [status, isAnyoneSharing]);
+  }, [status, isAnyoneSharing, t]);
 
   const stopScreenShare = useCallback(() => {
     if (!roomRef.current || !screenTrackRef.current) return;
 
     const ref = screenTrackRef.current;
     try {
-      roomRef.current.localParticipant.unpublishTrack(ref);
-      // Stop the track – it might be a LiveKit LocalVideoTrack or a raw
-      // MediaStreamTrack depending on which branch was used in startScreenShare.
-      if (typeof ref.stop === "function") {
-        ref.stop();
-      }
-      // Also stop the underlying MediaStreamTrack if it's a LiveKit wrapper
-      const raw = ref.mediaStreamTrack ?? ref.track;
-      if (raw && typeof raw.stop === "function") {
-        raw.stop();
-      }
+      void roomRef.current.localParticipant.unpublishTrack(ref);
+      ref.stop();
     } catch {}
 
     screenTrackRef.current = null;
-    setLocalTracks((prev) => prev.filter((t) => t.source !== "screen"))
+    setLocalTracks((prev) => prev.filter((t) => t.source !== "screen"));
     setIsScreenSharing(false);
     status(t("screen_stopped"));
-  }, [status]);
+  }, [status, t]);
 
-  const toggleVolumeMuted = () => {
+  const toggleVolumeMuted = useCallback(() => {
     setIsVolumeMuted((prev) => {
       const next = !prev;
-      // Apply immediately to existing audio elements
       audioElementsRef.current.forEach((audioEl) => {
         try {
           audioEl.muted = next;
@@ -513,23 +494,15 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
       });
       return next;
     });
-  };
+  }, []);
 
   useEffect(() => {
-    // Ensure all remote audio elements follow isVolumeMuted
     audioElementsRef.current.forEach((audioEl) => {
       try {
         audioEl.muted = isVolumeMuted;
       } catch {}
     });
   }, [isVolumeMuted]);
-
-  // useEffect(() => {
-  //   return () => {
-  //     leave();
-  //   };
-  // }, []);
-
 
   return {
     connectionState,
@@ -547,6 +520,6 @@ export function useLiveKit({ onStatusChange }: UseLiveKitOptions = {}) {
     stopScreenShare,
     isVolumeMuted,
     toggleVolumeMuted,
-    isAnyoneSharing
+    isAnyoneSharing,
   };
 }

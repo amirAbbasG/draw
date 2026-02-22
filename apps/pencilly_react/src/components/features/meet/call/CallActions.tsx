@@ -73,7 +73,7 @@ const CallActions: FC<CallActionsProps> = ({
 
   const isCompact = isOpenSidebar ? isXl : isSm;
 
-  const { role, stream_state } = conversation;
+  const { role, stream_state } = conversation ?? {};
   const isOwner = role === "owner";
   const canShareScreen = isOwner || stream_state === "open";
   const showScreenShare = stream_state !== "closed";

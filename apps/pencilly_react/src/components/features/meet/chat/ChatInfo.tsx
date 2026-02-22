@@ -8,7 +8,6 @@ import { UserAvatar } from "@/components/features/user/UserAvatar";
 import RenderIf from "@/components/shared/RenderIf";
 import { Show } from "@/components/shared/Show";
 import AppIconButton from "@/components/ui/custom/app-icon-button";
-import AppLoading from "@/components/ui/custom/app-loading";
 import AppTypo from "@/components/ui/custom/app-typo";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -58,7 +57,7 @@ const ChatInfo: FC<ChatInfoProps> = ({
   const t = useTranslations("meet.chat.info");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { isUpdating, updateConversationInfo, isUploading, uploadImage } =
+  const { isUpdating, updateConversationInfo } =
     useUpdateConversationInfo(conversation.id);
 
   // Use API members if provided, otherwise fall back to conversation.members
@@ -72,12 +71,10 @@ const ChatInfo: FC<ChatInfoProps> = ({
     title || members.map(m => m.name).join(", ") || "Conversation";
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { url } = await uploadImage({ file: e.target.files?.[0] } as {
-      file: File;
-    });
-    if (url) {
+    const file = e.target.files?.[0];
+    if (file) {
       updateConversationInfo({
-        profile_image: url,
+        profile_image_file: file,
       });
     }
   };
@@ -114,12 +111,12 @@ const ChatInfo: FC<ChatInfoProps> = ({
               className="!h-24 !w-24"
               backgroundColor="var(--bg-dark)"
             />
-            <RenderIf isTrue={isUploading}>
-              <AppLoading
-                rootClass="center-position"
-                svgClass="text-primary-lighter"
-              />
-            </RenderIf>
+            {/*<RenderIf isTrue={isUploading}>*/}
+            {/*  <AppLoading*/}
+            {/*    rootClass="center-position"*/}
+            {/*    svgClass="text-primary-lighter"*/}
+            {/*  />*/}
+            {/*</RenderIf>*/}
             <RenderIf isTrue={isGroup}>
               <AppIconButton
                 icon={sharedIcons.edit}
@@ -127,7 +124,7 @@ const ChatInfo: FC<ChatInfoProps> = ({
                 variant="fill"
                 onClick={handleAvatarClick}
                 className="absolute bottom-1 right-1"
-                disabled={isUpdating || isUploading}
+                disabled={isUpdating }
               />
               <input
                 ref={fileInputRef}

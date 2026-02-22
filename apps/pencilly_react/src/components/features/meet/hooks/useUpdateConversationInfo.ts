@@ -1,8 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+
+
 import { meetKeys } from "@/components/features/meet/query-keys";
 import { Conversation } from "@/components/features/meet/types";
 import { useAxiosFetcher } from "@/hooks/useAxiosFetch";
+
+
+
+
 
 export type UpdateConversationInput = Partial<
   Pick<
@@ -13,7 +19,7 @@ export type UpdateConversationInput = Partial<
     | "stream_state"
     | "status"
     | "title"
-  > & {profile_image: string}
+  > & {profile_image_file: File}
 >;
 
 export const useUpdateConversationInfo = (conversationId: string) => {
@@ -21,24 +27,20 @@ export const useUpdateConversationInfo = (conversationId: string) => {
   const queryClient = useQueryClient();
   const queryKey = meetKeys.conversations();
 
-  const { mutateAsync: uploadImage, isPending: isUploading } = useMutation({
-    mutationFn: ({ file }: { file: File }) => {
-      const data = new FormData();
-      data.append("file", file);
-      return axiosFetch<{url: string}>(
-        {
-          method: "post",
-          url: `/upload/`,
-          showError: true,
-        },
-        data,
-      );
-    },
-  });
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: UpdateConversationInput) =>
-      axiosFetch(
+    mutationFn: ({profile_image_file, ...rest}: UpdateConversationInput) => {
+      const data = new FormData();
+      if (profile_image_file) {
+        data.append("profile_image_file", profile_image_file);
+      }
+      Object.entries(rest).forEach(([key, value]) => {
+        if (value !== undefined) {
+          data.append(key, String(value));
+        }
+      });
+
+      return axiosFetch(
         {
           method: "patch",
           url: `/conversations/${conversationId}/`,
@@ -46,8 +48,9 @@ export const useUpdateConversationInfo = (conversationId: string) => {
           throwError: true,
         },
         data,
-      ),
-    onMutate: async data => {
+      );
+    },
+    onMutate: async ({profile_image_file, ...data}) => {
       // Optimistically update the conversation info in the cache
       await queryClient.cancelQueries({ queryKey });
 
@@ -59,6 +62,7 @@ export const useUpdateConversationInfo = (conversationId: string) => {
             return {
               ...conv,
               ...data,
+              profile_image_url: profile_image_file ? URL.createObjectURL(profile_image_file) : conv.profile_image_url,
             };
           }
           return conv;
@@ -75,7 +79,5 @@ export const useUpdateConversationInfo = (conversationId: string) => {
   return {
     updateConversationInfo: mutate,
     isUpdating: isPending,
-    uploadImage,
-    isUploading,
   };
 };
