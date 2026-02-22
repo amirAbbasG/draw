@@ -148,12 +148,6 @@ const PreviewWaveform: FC<{
 
 /* ────────────── main component ────────────── */
 
-/**
- * Single-instance voice recorder.
- *
- * The component always renders but changes its layout depending on state.
- * This avoids the dual-instance problem where unmounting kills the recorder.
- */
 const VoiceRecorder: FC<VoiceRecorderProps> = ({
   onSend,
   onStateChange,
@@ -177,7 +171,14 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const [isLocked, setIsLocked] = useState(false);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isHoldingRef = useRef(false);
+
+  /**
+   * We track "waiting for recording to start" so we know a recording is
+   * in-flight even before isRecording flips to true (getUserMedia is async).
+   */
+  const [isPending, setIsPending] = useState(false);
+  /** When true, auto-send as soon as recordingResult becomes available */
+  const [sendOnReady, setSendOnReady] = useState(false);
 
   // Preview playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -185,10 +186,18 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
+  // Refs for latest values (used inside window event listeners)
+  const isRecordingRef = useRef(isRecording);
+  const isLockedRef = useRef(isLocked);
+  const elapsedMsRef = useRef(elapsedMs);
+  isRecordingRef.current = isRecording;
+  isLockedRef.current = isLocked;
+  elapsedMsRef.current = elapsedMs;
+
   // Sync state with recorder
   useEffect(() => {
     let newState: VoiceRecorderState = "idle";
-    if (isRecording && !isLocked) {
+    if ((isRecording || isPending) && !isLocked) {
       newState = "recording";
     } else if (isRecording && isLocked) {
       newState = "locked";
@@ -197,7 +206,25 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
     }
     setState(newState);
     onStateChange?.(newState);
-  }, [isRecording, hasRecording, isLocked, recordingResult, onStateChange]);
+  }, [isRecording, isPending, hasRecording, isLocked, recordingResult, onStateChange]);
+
+  // When actual recording starts, clear pending
+  useEffect(() => {
+    if (isRecording) {
+      setIsPending(false);
+    }
+  }, [isRecording]);
+
+  // Auto-send when sendOnReady flag is set and result arrives
+  useEffect(() => {
+    if (sendOnReady && recordingResult) {
+      setSendOnReady(false);
+      onSend(recordingResult);
+      clearRecording();
+      setIsLocked(false);
+      setIsPending(false);
+    }
+  }, [sendOnReady, recordingResult, onSend, clearRecording]);
 
   // Clean up preview URL
   useEffect(() => {
@@ -208,40 +235,63 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
     };
   }, []);
 
-  /* ── hold-to-record handlers ── */
+  /* ── Global mouseup/touchend listener ──
+   *
+   * When the user presses the mic button, we start recording (async).
+   * The DOM may re-render before mouseup fires, so we use a global listener
+   * to reliably catch the release regardless of which element the cursor is on.
+   */
+  const handleGlobalRelease = useCallback(() => {
+    const recording = isRecordingRef.current;
+    const locked = isLockedRef.current;
+    const elapsed = elapsedMsRef.current;
 
-  const handleMicMouseDown = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault();
-      if (disabled || state !== "idle") return;
-      isHoldingRef.current = true;
-
-      holdTimerRef.current = setTimeout(() => {
-        if (isHoldingRef.current) {
-          startRecording();
-        }
-      }, 150);
-    },
-    [disabled, state, startRecording],
-  );
-
-  const handleMicMouseUp = useCallback(() => {
-    isHoldingRef.current = false;
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
 
-    // If recording and not locked, stop
-    if (isRecording && !isLocked) {
-      // If recorded less than 500ms, cancel
-      if (elapsedMs < 500) {
-        cancelRecording();
-      } else {
-        stopRecording();
-      }
+    if (!recording || locked) return;
+
+    // If recorded less than 500ms, cancel
+    if (elapsed < 500) {
+      cancelRecording();
+    } else {
+      stopRecording();
     }
-  }, [isRecording, isLocked, elapsedMs, stopRecording, cancelRecording]);
+  }, [cancelRecording, stopRecording]);
+
+  const globalReleaseRef = useRef(handleGlobalRelease);
+  globalReleaseRef.current = handleGlobalRelease;
+
+  /** Attach/detach the global listener when recording (non-locked) starts/stops */
+  useEffect(() => {
+    if ((isRecording || isPending) && !isLocked) {
+      const handler = () => globalReleaseRef.current();
+      window.addEventListener("mouseup", handler);
+      window.addEventListener("touchend", handler);
+      return () => {
+        window.removeEventListener("mouseup", handler);
+        window.removeEventListener("touchend", handler);
+      };
+    }
+  }, [isRecording, isPending, isLocked]);
+
+  /* ── hold-to-record handlers ── */
+
+  const handleMicPointerDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault();
+      if (disabled || state !== "idle") return;
+
+      // Start recording after a short hold (150ms debounce)
+      holdTimerRef.current = setTimeout(() => {
+        setIsPending(true);
+        startRecording();
+      }, 150);
+    },
+    [disabled, state, startRecording],
+  );
 
   const handleLock = useCallback(() => {
     setIsLocked(true);
@@ -255,6 +305,7 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
   const handleCancel = useCallback(() => {
     cancelRecording();
     setIsLocked(false);
+    setIsPending(false);
     setIsPlaying(false);
     setPreviewTime(0);
     if (audioRef.current) {
@@ -272,6 +323,7 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
     setIsPlaying(false);
     setPreviewTime(0);
     setIsLocked(false);
+    setIsPending(false);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -288,6 +340,13 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
       handleDiscard();
     }
   }, [recordingResult, onSend, handleDiscard]);
+
+  /** Stop recording and immediately send once result is ready */
+  const handleSendWhileRecording = useCallback(() => {
+    setSendOnReady(true);
+    stopRecording();
+    setIsLocked(false);
+  }, [stopRecording]);
 
   /* ── preview playback ── */
 
@@ -333,36 +392,23 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
   /* ── IDLE: just the mic button ── */
   if (state === "idle") {
     return (
-      <button
-        type="button"
-        className={cn(
-          "flex items-center justify-center h-7 w-7 rounded-full cursor-pointer",
-          "text-foreground-icon hover:bg-background-lighter",
-          "transition-colors select-none",
-          disabled && "opacity-50 pointer-events-none",
-          className,
-        )}
-        onMouseDown={handleMicMouseDown}
-        onMouseUp={handleMicMouseUp}
-        onMouseLeave={handleMicMouseUp}
-        onTouchStart={handleMicMouseDown}
-        onTouchEnd={handleMicMouseUp}
-        title={tVoice("hold_to_record")}
-      >
-        <AppIcon icon={sharedIcons.microphone} fontSize={18} />
-      </button>
+      <div className={className}>
+        <AppIconButton
+          icon={sharedIcons.microphone}
+          size="sm"
+          title={tVoice("hold_to_record")}
+          disabled={disabled}
+          onMouseDown={handleMicPointerDown}
+          onTouchStart={handleMicPointerDown}
+        />
+      </div>
     );
   }
 
   /* ── RECORDING (hold-to-record, not locked) ── */
   if (state === "recording") {
     return (
-      <div
-        className={cn("flex items-center gap-2 flex-1", className)}
-        onMouseUp={handleMicMouseUp}
-        onMouseLeave={handleMicMouseUp}
-        onTouchEnd={handleMicMouseUp}
-      >
+      <div className={cn("flex items-center gap-2 flex-1", className)}>
         {/* Recording indicator */}
         <div className="flex items-center gap-2 flex-1">
           <div className="size-2.5 rounded-full bg-danger animate-pulse shrink-0" />
@@ -374,25 +420,23 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
         </div>
 
         {/* Lock button */}
-        <button
-          type="button"
-          className="flex items-center justify-center h-7 w-7 rounded-full bg-background-lighter hover:bg-background-dark transition-colors cursor-pointer"
+        <AppIconButton
+          icon="hugeicons:lock-key"
+          size="sm"
+          title={tVoice("lock_recording")}
           onMouseDown={(e) => {
             e.stopPropagation();
             handleLock();
           }}
-          title={tVoice("lock_recording")}
-        >
-          <AppIcon icon="hugeicons:lock-key" fontSize={14} />
-        </button>
+        />
 
-        {/* Mic button (still being held) */}
-        <button
-          type="button"
-          className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-primary-foreground cursor-pointer"
-        >
-          <AppIcon icon={sharedIcons.microphone} fontSize={16} />
-        </button>
+        {/* Mic button indicator (user is holding) */}
+        <AppIconButton
+          icon={sharedIcons.microphone}
+          size="sm"
+          variant="fill"
+          className="rounded-full"
+        />
       </div>
     );
   }
@@ -420,23 +464,21 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
         </div>
 
         {/* Stop button */}
-        <button
-          type="button"
-          className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-primary-foreground cursor-pointer"
-          onClick={handleStopLocked}
+        <AppIconButton
+          icon="hugeicons:stop"
+          size="sm"
+          variant="fill"
+          className="rounded-full"
           title={tVoice("stop_recording")}
-        >
-          <AppIcon icon="hugeicons:stop" fontSize={16} />
-        </button>
+          onClick={handleStopLocked}
+        />
 
-        {/* Send directly */}
+        {/* Send directly (stops recording and auto-sends) */}
         <AppIconButton
           icon={sharedIcons.send}
           size="sm"
           variant="fill"
-          onClick={() => {
-            stopRecording();
-          }}
+          onClick={handleSendWhileRecording}
           className="rounded-full"
           title={tVoice("send_voice")}
         />
@@ -446,32 +488,27 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
 
   /* ── PREVIEW: recorded audio ready to send ── */
   if (state === "preview" && recordingResult) {
-    const durationStr = formatDuration(recordingResult.durationMs);
     const currentStr = formatDuration(previewTime);
 
     return (
       <div className={cn("flex items-center gap-2 flex-1", className)}>
         {/* Discard */}
-        <button
-          type="button"
-          className="flex items-center justify-center h-7 w-7 rounded-full hover:bg-background-lighter transition-colors cursor-pointer text-danger"
-          onClick={handleDiscard}
+        <AppIconButton
+          icon="hugeicons:delete-02"
+          size="sm"
+          color="danger"
           title={tVoice("discard")}
-        >
-          <AppIcon icon="hugeicons:delete-02" fontSize={16} />
-        </button>
+          onClick={handleDiscard}
+        />
 
         {/* Play/Pause */}
-        <button
-          type="button"
-          className="flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground cursor-pointer shrink-0"
+        <AppIconButton
+          icon={isPlaying ? "hugeicons:pause" : "hugeicons:play"}
+          size="sm"
+          variant="fill"
+          className="rounded-full shrink-0"
           onClick={togglePreviewPlay}
-        >
-          <AppIcon
-            icon={isPlaying ? "hugeicons:pause" : "hugeicons:play"}
-            fontSize={14}
-          />
-        </button>
+        />
 
         {/* Waveform */}
         <PreviewWaveform
