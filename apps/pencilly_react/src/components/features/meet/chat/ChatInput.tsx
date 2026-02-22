@@ -18,6 +18,7 @@ import { useTranslations } from "@/i18n";
 
 import type { ChatMessage, MeetUser } from "../types";
 import MentionPopup from "./MentionPopup";
+import VoiceRecorder from "./VoiceRecorder";
 import {
   extractDecoratorsFromText,
   getCaretCharacterOffsetWithin,
@@ -28,6 +29,8 @@ import {decorators} from "@/components/features/meet/constants";
 interface ChatInputProps {
   members: MeetUser[];
   onSend: (text: string, replyToId?: string) => void;
+  /** Called when a voice recording is sent */
+  onSendAudio?: (blob: Blob, durationMs: number, mimeType: string) => void;
   /** Message being replied to */
   replyTo?: ChatMessage | null;
   /** Message being edited */
@@ -49,6 +52,7 @@ interface ChatInputProps {
 const ChatInput: FC<ChatInputProps> = ({
   members,
   onSend,
+  onSendAudio,
   replyTo,
   editingMessage,
   onCancelReply,
@@ -63,6 +67,7 @@ const ChatInput: FC<ChatInputProps> = ({
   const [value, setValue] = useState("");
   const [initialValue, setInitialValue] = useState("");
   const [mentionOpen, setMentionOpen] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const divRef = useRef<HTMLDivElement>(null);
 
   // Pre-fill input when editing
@@ -308,33 +313,55 @@ const ChatInput: FC<ChatInputProps> = ({
 
       {/* Footer toolbar */}
       <div className="flex items-center gap-1 px-2 pb-2 pt-1">
-        <AppIconButton
-          icon="iconoir:at-sign"
-          size="sm"
-          onClick={handleMentionButtonClick}
-          title={tChat("mention_user")}
-          iconClassName={mentionOpen ? "text-primary" : ""}
-        />
+        {isVoiceMode ? (
+          <VoiceRecorder
+            onSend={(blob, dur, mime) => {
+              onSendAudio?.(blob, dur, mime);
+              setIsVoiceMode(false);
+            }}
+            disabled={disabled}
+            className="flex-1"
+          />
+        ) : (
+          <>
+            <AppIconButton
+              icon="iconoir:at-sign"
+              size="sm"
+              onClick={handleMentionButtonClick}
+              title={tChat("mention_user")}
+              iconClassName={mentionOpen ? "text-primary" : ""}
+            />
 
-        <EmojiPicker onChange={handleEmojiSelect} />
+            <EmojiPicker onChange={handleEmojiSelect} />
 
-        <SpeechToText
-          className="ms-auto"
-          transcript={value}
-          setTranscript={handleTranscript}
-          size="sm"
-        />
+            <SpeechToText
+              className="ms-auto"
+              transcript={value}
+              setTranscript={handleTranscript}
+              size="sm"
+            />
 
-        <AppIconButton
-          icon={sharedIcons.send}
-          size="sm"
-          variant="fill"
-          onClick={handleSend}
-          disabled={disabled || !value.trim() || textDecorators.count > 1}
-          title={tChat( textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
-          className="rounded-full"
+            {onSendAudio && (
+              <AppIconButton
+                icon={sharedIcons.microphone}
+                size="sm"
+                title={tChat("voice_message")}
+                onClick={() => setIsVoiceMode(true)}
+                disabled={disabled}
+              />
+            )}
 
-        />
+            <AppIconButton
+              icon={sharedIcons.send}
+              size="sm"
+              variant="fill"
+              onClick={handleSend}
+              disabled={disabled || !value.trim() || textDecorators.count > 1}
+              title={tChat( textDecorators.count > 1 ? "only_one_decorator" : "send_message")}
+              className="rounded-full"
+            />
+          </>
+        )}
       </div>
     </div>
   );

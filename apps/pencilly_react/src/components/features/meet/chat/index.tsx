@@ -51,6 +51,8 @@ interface ChatViewProps {
     includeChat?: number,
   ) => void;
   onDeleteMember: (memberId: string) => void;
+  /** Called when a voice message is sent */
+  onSendAudio?: (blob: Blob, durationMs: number, mimeType: string, replyToId?: string) => void;
   /** Whether messages are loading */
   isLoadingMessages?: boolean;
   /** Leave group callback */
@@ -82,6 +84,7 @@ const ChatView: FC<ChatViewProps> = ({
   onLeaveGroup,
   onMuteToggle,
   onDeleteMember,
+  onSendAudio,
   isLoadingMessages,
   onDeleteForEveryone,
   apiMembers,
@@ -148,6 +151,14 @@ const ChatView: FC<ChatViewProps> = ({
       setEditingMessage(null);
     },
     [onEditMessage],
+  );
+
+  const handleSendAudio = useCallback(
+    (blob: Blob, durationMs: number, mimeType: string) => {
+      onSendAudio?.(blob, durationMs, mimeType, replyTo?.id);
+      setReplyTo(null);
+    },
+    [onSendAudio, replyTo],
   );
 
   return (
@@ -264,6 +275,7 @@ const ChatView: FC<ChatViewProps> = ({
               <ChatInput
                 members={apiMembers}
                 onSend={handleSend}
+                onSendAudio={onSendAudio ? handleSendAudio : undefined}
                 replyTo={replyTo}
                 editingMessage={editingMessage}
                 onCancelReply={() => setReplyTo(null)}

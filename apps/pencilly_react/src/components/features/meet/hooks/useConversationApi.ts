@@ -329,6 +329,57 @@ export function useConversationApi() {
     [axiosFetch],
   );
 
+  /**
+   * POST /api/v1/conversations/{id}/audio/messages/
+   * Upload an audio message via multipart form data.
+   */
+  const uploadAudioMessage = useCallback(
+    async (
+      conversationId: string,
+      file: Blob,
+      clientEventId: string,
+      durationMs?: number,
+      replyTo?: string,
+    ): Promise<{ event: ConversationEventPayload; deduped: boolean } | null> => {
+      try {
+        const formData = new FormData();
+        // Derive extension from mime type
+        const ext = file.type?.includes("ogg")
+          ? "ogg"
+          : file.type?.includes("mp4")
+            ? "mp4"
+            : "webm";
+        formData.append("file", file, `voice.${ext}`);
+        formData.append("client_event_id", clientEventId);
+        if (durationMs != null) {
+          formData.append("duration_ms", String(Math.round(durationMs)));
+        }
+        if (replyTo) {
+          formData.append("reply_to", replyTo);
+        }
+
+        const data = await axiosFetch<{
+          event: ConversationEventPayload;
+          deduped: boolean;
+        }>(
+          {
+            method: "post",
+            url: `${API_BASE}/${conversationId}/audio/messages/`,
+            showError: true,
+            requestConfig: {
+              headers: { "Content-Type": "multipart/form-data" },
+            },
+          },
+          formData,
+        );
+        return data ?? null;
+      } catch {
+        return null;
+      }
+    },
+    [axiosFetch],
+  );
+
   const addToConversation = useCallback(
     async (
       conversationId: string,
@@ -373,5 +424,6 @@ export function useConversationApi() {
     changeConversationMuted,
     kickFromConversation,
     addToConversation,
+    uploadAudioMessage,
   };
 }

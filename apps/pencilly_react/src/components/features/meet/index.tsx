@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { CallView } from "@/components/features/meet/call";
 import StartCall from "@/components/features/meet/start";
 import StatusBadge from "@/components/features/meet/StatusBadge";
-import { createTemConversation } from "@/components/features/meet/utils";
+import { createTemConversation, generateClientEventId } from "@/components/features/meet/utils";
 import AppDrawer from "@/components/shared/AppDrawer";
 import DynamicButton from "@/components/shared/DynamicButton";
 import RenderIf from "@/components/shared/RenderIf";
@@ -323,6 +323,23 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
     [conversationApi, removeMember, activeConversation],
   );
 
+  // ─── Audio message upload ───────────────────────────────
+  const handleSendAudio = useCallback(
+    async (blob: Blob, durationMs: number, _mimeType: string, replyToId?: string) => {
+      const convId = activeConversation?.id;
+      if (!convId) return;
+      const clientEventId = generateClientEventId();
+      await conversationApi.uploadAudioMessage(
+        convId,
+        blob,
+        clientEventId,
+        durationMs,
+        replyToId,
+      );
+    },
+    [activeConversation, conversationApi],
+  );
+
   // ─── Build CallView props ─────────────────────────────
 
   const room: CallRoom = useMemo(
@@ -456,6 +473,7 @@ const MeetDrawer: FC<MeetDrawerProps> = ({
               onJoinCall={handleJoinCall}
               isTemp={!activeConversation && !!tempChat}
               onSendMessage={chatMessages.sendMessage}
+              onSendAudio={handleSendAudio}
               onEditMessage={chatMessages.editMessage}
               onDeleteMessage={chatMessages.deleteMessage}
               onCall={type => {

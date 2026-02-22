@@ -55,3 +55,8 @@ div[data-radix-popper-content-wrapper]:has(.top-z) {
 .notification-toast {
     @apply row gap-2 w-[349px] h-20 p-4 rounded-lg rounded-tr-none bg-background-darker shadow-lg;
 }
+
+@keyframes wave {
+    0% { transform: scaleY(0.4); }
+    100% { transform: scaleY(1); }
+}

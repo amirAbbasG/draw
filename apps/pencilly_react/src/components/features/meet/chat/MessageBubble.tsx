@@ -12,6 +12,7 @@ import { useTranslations } from "@/i18n";
 
 import type { ChatMessage, MessageStatus } from "../types";
 import { formatMessageTime } from "../utils";
+import AudioMessageBubble from "./AudioMessageBubble";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -50,10 +51,13 @@ const MessageBubble: FC<MessageBubbleProps> = ({
     replyTo,
     agentType,
     type,
-      updatedAt
+    subtype,
+    payload,
+    updatedAt,
   } = message;
 
   const isAgentMessage = type === "agent" && !!agentType;
+  const isAudio = subtype === "audio" && !!payload;
   const senderName = isAgentMessage
     ? agentType.replaceAll("-", " ")
     : (actor?.name ?? "Unknown");
@@ -133,7 +137,7 @@ const onClickReply = () => {
           </AppTypo>
         </RenderIf>
 
-        {/* Message text */}
+        {/* Message text or audio */}
         <RenderIf isTrue={isAgentMessage && message.status === "pending" && isRecentlyUpdated}>
           <div className="row gap-1 py-1">
             <DotLoading className="px-0 py-0" />
@@ -142,18 +146,31 @@ const onClickReply = () => {
             </AppTypo>
           </div>
         </RenderIf>
-        <div
-          className={cn(
-            "text-sm leading-relaxed break-words whitespace-pre-wrap",
-            isCurrentUser ? "text-primary-foreground" : "text-foreground",
-          )}
-        >
-          {isDeleted
-            ? t("message_deleted")
-            : highlightMentions
-              ? renderWithMentions(body, isCurrentUser)
-              : body}
-        </div>
+
+        {isAudio && !isDeleted ? (
+          <AudioMessageBubble
+            payload={{
+              audioUrl: payload?.audioUrl,
+              mimeType: payload?.mimeType,
+              fileSizeBytes: payload?.fileSizeBytes,
+              durationMs: payload?.durationMs,
+            }}
+            isCurrentUser={isCurrentUser}
+          />
+        ) : (
+          <div
+            className={cn(
+              "text-sm leading-relaxed break-words whitespace-pre-wrap",
+              isCurrentUser ? "text-primary-foreground" : "text-foreground",
+            )}
+          >
+            {isDeleted
+              ? t("message_deleted")
+              : highlightMentions
+                ? renderWithMentions(body, isCurrentUser)
+                : body}
+          </div>
+        )}
 
         {/* Timestamp, edited label, and status */}
         <div
