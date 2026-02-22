@@ -19,6 +19,8 @@ import type { AudioRecorderState } from "../hooks/useAudioRecorder";
 interface VoiceRecorderProps {
   /** Called when user sends the recorded voice */
   onSend: (blob: Blob, durationMs: number, mimeType: string) => void;
+  /** Called when user cancels / exits voice mode */
+  onCancel: () => void;
   disabled?: boolean;
   className?: string;
 }
@@ -29,10 +31,11 @@ interface VoiceRecorderProps {
  */
 const VoiceRecorder: FC<VoiceRecorderProps> = ({
   onSend,
+  onCancel,
   disabled = false,
   className,
 }) => {
-  const t = useTranslations("meet.chat");
+  const t = useTranslations("meet.chat.voice");
   const {
     state,
     durationMs,
@@ -51,6 +54,14 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoldingRef = useRef(false);
+
+  // Auto-start recording on mount
+  useEffect(() => {
+    if (state === "idle") {
+      startRecording();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Clean up audio element on unmount or state change
   useEffect(() => {
@@ -173,19 +184,21 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  /* ─── IDLE: show mic button ─── */
+  /* ─── IDLE: waiting for mic permission / starting ─── */
   if (state === "idle") {
     return (
-      <AppIconButton
-        icon={sharedIcons.microphone}
-        size="sm"
-        title={t("hold_to_record")}
-        disabled={disabled}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
-        className={cn("select-none touch-none", className)}
-      />
+      <div className={cn("flex items-center gap-2 w-full", className)}>
+        <span className="size-2.5 rounded-full bg-foreground-lighter animate-pulse shrink-0" />
+        <AppTypo variant="sm" color="secondary" className="flex-1">
+          {t("hold_to_record")}
+        </AppTypo>
+        <AppIconButton
+          icon={sharedIcons.close}
+          size="sm"
+          title={t("cancel_recording")}
+          onClick={onCancel}
+        />
+      </div>
     );
   }
 
@@ -245,7 +258,7 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
           icon={sharedIcons.delete}
           size="sm"
           title={t("cancel_recording")}
-          onClick={discard}
+          onClick={() => { discard(); onCancel(); }}
           iconClassName="text-danger"
         />
       </div>
@@ -261,7 +274,7 @@ const VoiceRecorder: FC<VoiceRecorderProps> = ({
           icon={sharedIcons.delete}
           size="sm"
           title={t("delete_recording")}
-          onClick={discard}
+          onClick={() => { discard(); onCancel(); }}
           iconClassName="text-danger"
           disabled={state === "sending"}
         />
